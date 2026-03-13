@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:animate_do/animate_do.dart';
 
 final clientsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -29,7 +30,6 @@ class ClientListScreen extends ConsumerWidget {
     }
   }
 
-  // --- NOVA FUNÇÃO: Tela de Edição Completa ---
   void _showEditDialog(BuildContext context, Map<String, dynamic> client) {
     final nameCtrl = TextEditingController(text: client['name']);
     final phoneCtrl = TextEditingController(text: client['phone']);
@@ -44,37 +44,33 @@ class ClientListScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Editar Negociação', style: TextStyle(color: Color(0xFF1E3A8A))),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Editar Negociação', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, letterSpacing: -0.5)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nome')),
-                TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Telefone')),
-                TextField(controller: creditCtrl, decoration: const InputDecoration(labelText: 'Valor do Crédito')),
-                DropdownButtonFormField<String>(
-                  value: interest, decoration: const InputDecoration(labelText: 'Produto'),
-                  items: ['Imóvel', 'Automóvel', 'Motocicleta', 'Veículos Pesados', 'Serviços'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => interest = v!),
-                ),
-                DropdownButtonFormField<String>(
-                  value: plan, decoration: const InputDecoration(labelText: 'Plano'),
-                  items: ['Normal', 'Light', 'Superlight'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => plan = v!),
-                ),
-                DropdownButtonFormField<String>(
-                  value: capture, decoration: const InputDecoration(labelText: 'Captação'),
-                  items: ['Indicação', 'Visitas Externas', 'Leads da Empresa', 'Leads Próprios', 'Redes Sociais', 'P.A.P', 'Ação de Vendas'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => capture = v!),
-                ),
-                TextField(controller: infoCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Anotações')),
+                _buildPremiumInput(nameCtrl, 'Nome Completo'),
+                const SizedBox(height: 12),
+                _buildPremiumInput(phoneCtrl, 'Telefone'),
+                const SizedBox(height: 12),
+                _buildPremiumInput(creditCtrl, 'Valor do Crédito'),
+                const SizedBox(height: 12),
+                _buildPremiumDropdown(interest, 'Produto', ['Imóvel', 'Automóvel', 'Motocicleta', 'Veículos Pesados', 'Serviços'], (v) => setState(() => interest = v!)),
+                const SizedBox(height: 12),
+                _buildPremiumDropdown(plan, 'Plano', ['Normal', 'Light', 'Superlight'], (v) => setState(() => plan = v!)),
+                const SizedBox(height: 12),
+                _buildPremiumDropdown(capture, 'Captação', ['Indicação', 'Visitas Externas', 'Leads da Empresa', 'Leads Próprios', 'Redes Sociais', 'P.A.P', 'Ação de Vendas'], (v) => setState(() => capture = v!)),
+                const SizedBox(height: 12),
+                _buildPremiumInput(infoCtrl, 'Anotações', maxLines: 2),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.black54))),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () async {
                 await Supabase.instance.client.from('clients').update({
                   'name': nameCtrl.text, 'phone': phoneCtrl.text, 'credit_value': creditCtrl.text,
@@ -82,7 +78,7 @@ class ClientListScreen extends ConsumerWidget {
                 }).eq('id', client['id']);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
-              child: const Text('Salvar', style: TextStyle(color: Colors.white)),
+              child: const Text('Salvar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -90,11 +86,28 @@ class ClientListScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildPremiumInput(TextEditingController ctrl, String label, {int maxLines = 1}) {
+    return TextField(
+      controller: ctrl, maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 13),
+        filled: true, fillColor: const Color(0xFFF1F5F9),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  Widget _buildPremiumDropdown(String value, String label, List<String> items, Function(String?) onChanged) {
+    return DropdownButtonFormField<String>(
+      value: value, decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 13), filled: true, fillColor: const Color(0xFFF1F5F9), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+      items: items.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 14)))).toList(), onChanged: onChanged,
+    );
+  }
+
   Future<void> _openWhatsApp(BuildContext context, String clientId, String phone, String clientName, String interest) async {
     final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
     String finalPhone = cleanPhone;
     if (cleanPhone.length == 10 || cleanPhone.length == 11) finalPhone = '55$cleanPhone';
-
     final text = 'Olá $clientName, aqui é da Consórcio Recon. Vi que você tem interesse em consórcio de $interest. Podemos conversar?';
     final url = Uri.parse('https://wa.me/$finalPhone?text=${Uri.encodeComponent(text)}');
 
@@ -110,7 +123,6 @@ class ClientListScreen extends ConsumerWidget {
   Future<void> _makePhoneCall(BuildContext context, String clientId, String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('tel:$cleanPhone');
-
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
       await Supabase.instance.client.from('interaction_logs').insert({'client_id': clientId, 'vendedor_id': userId, 'action_type': 'ligacao'});
@@ -126,92 +138,106 @@ class ClientListScreen extends ConsumerWidget {
     final stages = ['Prospecção', 'Apresentação', 'Follow-up', 'Fechamento'];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Minhas Negociações'), backgroundColor: const Color(0xFF1E3A8A), foregroundColor: Colors.white),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(title: const Text('Minhas Negociações', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)), backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white, elevation: 0),
       body: clientsStream.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF1E3A8A))),
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFD97706))),
         error: (error, stack) => Center(child: Text('Erro: $error', style: const TextStyle(color: Colors.red))),
         data: (clients) {
-          if (clients.isEmpty) return const Center(child: Text('Nenhum cliente cadastrado.', style: TextStyle(color: Colors.black54)));
+          if (clients.isEmpty) return const Center(child: Text('Nenhum prospect cadastrado.', style: TextStyle(color: Colors.black54, fontSize: 16)));
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             itemCount: clients.length,
             itemBuilder: (context, index) {
               final client = clients[index];
               final needsHelp = client['needs_supervisor_help'] ?? false;
-              final credit = client['credit_value'] ?? 'N/A';
-              final plan = client['plan_type'] ?? 'Normal';
-              final capture = client['capture_type'] ?? 'Indicação';
-              final addInfo = client['additional_info'] ?? '';
-              final supSuggestion = client['supervisor_suggestion'] ?? '';
-
-              return Card(
-                elevation: 2, margin: const EdgeInsets.only(bottom: 16.0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: Text(client['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                          IconButton(icon: const Icon(Icons.edit_note_rounded, color: Colors.blueGrey), onPressed: () => _showEditDialog(context, client)),
-                          PopupMenuButton<String>(
-                            initialValue: client['stage'], tooltip: 'Mudar estágio',
-                            onSelected: (newStage) => _updateStage(context, client['id'], newStage),
-                            itemBuilder: (ctx) => stages.map((c) => PopupMenuItem(value: c, child: Text(c, style: TextStyle(fontWeight: c == client['stage'] ? FontWeight.bold : FontWeight.normal)))).toList(),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              decoration: BoxDecoration(color: const Color(0xFF1E3A8A).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [Text(client['stage'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))), const SizedBox(width: 4), const Icon(Icons.arrow_drop_down_rounded, size: 18, color: Color(0xFF1E3A8A))]),
+              
+              // Efeito em cascata: cada card demora um pouquinho mais para aparecer
+              return FadeInUp(
+                duration: const Duration(milliseconds: 400),
+                delay: Duration(milliseconds: 50 * index),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white, borderRadius: BorderRadius.circular(24),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8))],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: Text(client['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5), overflow: TextOverflow.ellipsis)),
+                            IconButton(icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF94A3B8)), onPressed: () => _showEditDialog(context, client)),
+                            PopupMenuButton<String>(
+                              initialValue: client['stage'], tooltip: 'Mudar estágio',
+                              onSelected: (newStage) => _updateStage(context, client['id'], newStage),
+                              itemBuilder: (ctx) => stages.map((c) => PopupMenuItem(value: c, child: Text(c, style: TextStyle(fontWeight: c == client['stage'] ? FontWeight.bold : FontWeight.w500)))).toList(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(10)),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [Text(client['stage'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)), const SizedBox(width: 4), const Icon(Icons.arrow_drop_down_rounded, size: 16, color: Colors.white)]),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: Divider(color: Color(0xFFF1F5F9), thickness: 1.5)),
+                        Wrap(
+                          spacing: 12, runSpacing: 10,
+                          children: [
+                            _InfoBadge(icon: Icons.monetization_on_rounded, text: client['credit_value'] ?? 'N/A', color: const Color(0xFF10B981), bgColor: const Color(0xFFD1FAE5)),
+                            _InfoBadge(icon: Icons.maps_home_work_rounded, text: client['interest'], color: const Color(0xFF3B82F6), bgColor: const Color(0xFFDBEAFE)),
+                            _InfoBadge(icon: Icons.assignment_rounded, text: client['plan_type'] ?? 'Normal', color: const Color(0xFF6366F1), bgColor: const Color(0xFFE0E7FF)),
+                            _InfoBadge(icon: Icons.radar_rounded, text: client['capture_type'] ?? 'Ind.', color: const Color(0xFF8B5CF6), bgColor: const Color(0xFFEDE9FE)),
+                          ],
+                        ),
+                        if (client['additional_info'] != null && client['additional_info'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Text('Anotações: ${client['additional_info']}', style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Color(0xFF64748B))),
+                        ],
+                        if (client['supervisor_suggestion'] != null && client['supervisor_suggestion'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12), width: double.infinity,
+                            decoration: BoxDecoration(color: const Color(0xFFF0FDF4), border: Border.all(color: const Color(0xFFBBF7D0)), borderRadius: BorderRadius.circular(12)),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.lightbulb_circle_rounded, color: Color(0xFF16A34A), size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text('Sugestão Estratégica:\n${client['supervisor_suggestion']}', style: const TextStyle(fontSize: 13, color: Color(0xFF166534), fontWeight: FontWeight.w600, height: 1.4))),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                      const Divider(),
-                      Wrap(
-                        spacing: 16, runSpacing: 8,
-                        children: [
-                          _InfoBadge(icon: Icons.monetization_on, text: credit, color: Colors.green.shade700),
-                          _InfoBadge(icon: Icons.maps_home_work, text: client['interest'], color: Colors.black54),
-                          _InfoBadge(icon: Icons.assignment, text: plan, color: Colors.black54),
-                          _InfoBadge(icon: Icons.radar, text: capture, color: Colors.purple.shade700),
-                        ],
-                      ),
-                      if (addInfo.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Text('Notas: $addInfo', style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.black54)),
-                      ],
-                      if (supSuggestion.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(8), width: double.infinity,
-                          decoration: BoxDecoration(color: Colors.blue.shade50, border: Border.all(color: Colors.blue.shade200), borderRadius: BorderRadius.circular(8)),
-                          child: Text('💡 Sugestão da Supervisão: $supSuggestion', style: TextStyle(fontSize: 13, color: Colors.blue.shade900, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _toggleHelp(client['id'], needsHelp),
+                                icon: Icon(needsHelp ? Icons.support_agent_rounded : Icons.pan_tool_outlined, size: 18),
+                                label: Text(needsHelp ? 'Aguardando' : 'Pedir Ajuda', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: needsHelp ? const Color(0xFFEF4444) : const Color(0xFFD97706),
+                                  side: BorderSide(color: needsHelp ? const Color(0xFFEF4444) : const Color(0xFFD97706), width: 1.5),
+                                  backgroundColor: needsHelp ? const Color(0xFFFEF2F2) : Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            _buildActionButton(Icons.phone_rounded, const Color(0xFF3B82F6), const Color(0xFFEFF6FF), () => _makePhoneCall(context, client['id'], client['phone'])),
+                            const SizedBox(width: 8),
+                            _buildActionButton(Icons.chat_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5), () => _openWhatsApp(context, client['id'], client['phone'], client['name'], client['interest'])),
+                          ],
                         ),
                       ],
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Spacer(),
-                          IconButton(onPressed: () => _makePhoneCall(context, client['id'], client['phone']), icon: const Icon(Icons.phone_rounded), color: const Color(0xFF1E3A8A), style: IconButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A).withOpacity(0.1))),
-                          const SizedBox(width: 8),
-                          IconButton(onPressed: () => _openWhatsApp(context, client['id'], client['phone'], client['name'], client['interest']), icon: const Icon(Icons.chat_rounded), color: Colors.green.shade600, style: IconButton.styleFrom(backgroundColor: Colors.green.shade50)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _toggleHelp(client['id'], needsHelp),
-                          icon: Icon(needsHelp ? Icons.support_agent_rounded : Icons.pan_tool_outlined, color: needsHelp ? Colors.red : Colors.orange),
-                          label: Text(needsHelp ? 'Aguardando Supervisor' : 'Solicitar Ajuda no Fechamento', style: TextStyle(color: needsHelp ? Colors.red : Colors.orange)),
-                          style: OutlinedButton.styleFrom(side: BorderSide(color: needsHelp ? Colors.red : Colors.orange), backgroundColor: needsHelp ? Colors.red.withOpacity(0.05) : Colors.transparent),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -221,14 +247,27 @@ class ClientListScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildActionButton(IconData icon, Color color, Color bgColor, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap, borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
 }
 
-// Widget auxiliar para manter o layout limpo
 class _InfoBadge extends StatelessWidget {
-  final IconData icon; final String text; final Color color;
-  const _InfoBadge({required this.icon, required this.text, required this.color});
+  final IconData icon; final String text; final Color color; final Color bgColor;
+  const _InfoBadge({required this.icon, required this.text, required this.color, required this.bgColor});
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: color), const SizedBox(width: 4), Text(text, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w500))]);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: color), const SizedBox(width: 4), Text(text, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600))]),
+    );
   }
 }

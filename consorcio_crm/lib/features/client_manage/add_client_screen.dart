@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:animate_do/animate_do.dart';
 
 class AddClientScreen extends StatefulWidget {
   const AddClientScreen({super.key});
@@ -13,14 +14,13 @@ class _AddClientScreenState extends State<AddClientScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _creditController = TextEditingController(); // Novo: Valor de Crédito
-  final _infoController = TextEditingController(); // Novo: Informações Adicionais
+  final _creditController = TextEditingController();
+  final _infoController = TextEditingController();
   
-  // Valores padrão para os Dropdowns
   String _selectedInterest = 'Imóvel';
   String _selectedStage = 'Prospecção';
-  String _selectedCapture = 'Indicação'; // Novo
-  String _selectedPlan = 'Normal'; // Novo
+  String _selectedCapture = 'Indicação';
+  String _selectedPlan = 'Normal';
   bool _isLoading = false;
 
   final List<String> _interests = ['Imóvel', 'Automóvel', 'Motocicleta', 'Veículos Pesados', 'Serviços'];
@@ -57,17 +57,11 @@ class _AddClientScreenState extends State<AddClientScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cliente cadastrado com sucesso!'), backgroundColor: Colors.green),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Prospect cadastrado com sucesso!'), backgroundColor: Color(0xFF10B981)));
           context.pop(); 
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Erro ao cadastrar cliente. Tente novamente.'), backgroundColor: Colors.red),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao cadastrar prospect.'), backgroundColor: Colors.red));
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -77,92 +71,134 @@ class _AddClientScreenState extends State<AddClientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Novo Cliente'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
+        title: const Text('Cadastrar Prospect', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white, elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Dados Básicos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(labelText: 'Nome Completo', prefixIcon: const Icon(Icons.person_outline), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                  validator: (value) => value == null || value.isEmpty ? 'Informe o nome' : null,
+                FadeInUp(
+                  duration: const Duration(milliseconds: 500),
+                  child: _buildSectionCard(
+                    title: 'Dados Pessoais',
+                    icon: Icons.person_outline_rounded,
+                    children: [
+                      _buildPremiumInput(controller: _nameController, label: 'Nome Completo', isRequired: true),
+                      const SizedBox(height: 16),
+                      _buildPremiumInput(controller: _phoneController, label: 'WhatsApp / Telefone', isPhone: true, isRequired: true),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(labelText: 'WhatsApp / Telefone', prefixIcon: const Icon(Icons.phone_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                  validator: (value) => value == null || value.isEmpty ? 'Informe o telefone' : null,
+                const SizedBox(height: 24),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 600),
+                  child: _buildSectionCard(
+                    title: 'Qualificação da Cota',
+                    icon: Icons.analytics_outlined,
+                    children: [
+                      _buildPremiumInput(controller: _creditController, label: 'Valor do Crédito (Ex: R\$ 150.000)'),
+                      const SizedBox(height: 16),
+                      _buildPremiumDropdown('Produto', _selectedInterest, _interests, (v) => setState(() => _selectedInterest = v!)),
+                      const SizedBox(height: 16),
+                      _buildPremiumDropdown('Possível Plano', _selectedPlan, _planTypes, (v) => setState(() => _selectedPlan = v!)),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 32),
-
-                const Text('Detalhes da Negociação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _creditController,
-                  keyboardType: TextInputType.text,
-                  decoration: InputDecoration(labelText: 'Valor do Crédito (Ex: R\$ 150.000)', prefixIcon: const Icon(Icons.monetization_on_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
+                const SizedBox(height: 24),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 700),
+                  child: _buildSectionCard(
+                    title: 'Estratégia e Funil',
+                    icon: Icons.flag_outlined,
+                    children: [
+                      _buildPremiumDropdown('Tipo de Captação', _selectedCapture, _captureTypes, (v) => setState(() => _selectedCapture = v!)),
+                      const SizedBox(height: 16),
+                      _buildPremiumDropdown('Estágio Inicial', _selectedStage, _stages, (v) => setState(() => _selectedStage = v!)),
+                      const SizedBox(height: 16),
+                      _buildPremiumInput(controller: _infoController, label: 'Anotações Iniciais', maxLines: 3),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedInterest,
-                  decoration: InputDecoration(labelText: 'Interesse (Produto)', prefixIcon: const Icon(Icons.maps_home_work_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                  items: _interests.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => _selectedInterest = v!),
+                const SizedBox(height: 40),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 800),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveClient,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD97706),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                        : const Text('Salvar na Carteira', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedPlan,
-                  decoration: InputDecoration(labelText: 'Possível Plano', prefixIcon: const Icon(Icons.assignment_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                  items: _planTypes.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => _selectedPlan = v!),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedCapture,
-                  decoration: InputDecoration(labelText: 'Tipo de Captação', prefixIcon: const Icon(Icons.radar_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                  items: _captureTypes.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => _selectedCapture = v!),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedStage,
-                  decoration: InputDecoration(labelText: 'Estágio da Negociação', prefixIcon: const Icon(Icons.trending_up_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                  items: _stages.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => _selectedStage = v!),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _infoController,
-                  maxLines: 3,
-                  decoration: InputDecoration(labelText: 'Informações Adicionais', prefixIcon: const Icon(Icons.notes_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
-                ),
-                const SizedBox(height: 32),
-
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _saveClient,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: _isLoading
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Salvar Cliente', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: const Color(0xFFD97706), size: 24),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+            ],
+          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Color(0xFFF1F5F9), thickness: 1.5)),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumInput({required TextEditingController controller, required String label, bool isRequired = false, bool isPhone = false, int maxLines = 1}) {
+    return TextFormField(
+      controller: controller, maxLines: maxLines,
+      textCapitalization: isPhone ? TextCapitalization.none : TextCapitalization.words,
+      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 14),
+        filled: true, fillColor: const Color(0xFFF1F5F9),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      ),
+      validator: isRequired ? (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null : null,
+    );
+  }
+
+  Widget _buildPremiumDropdown(String label, String value, List<String> items, Function(String?) onChanged) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 14),
+        filled: true, fillColor: const Color(0xFFF1F5F9),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      ),
+      items: items.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)))).toList(),
+      onChanged: onChanged,
     );
   }
 }
