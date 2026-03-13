@@ -8,6 +8,7 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/client_manage/add_client_screen.dart';
 import '../../features/client_manage/client_list_screen.dart';
 import '../../features/help_requests/help_requests_screen.dart';
+import '../../features/dashboard/team_overview_screen.dart';
 
 class AuthNotifier extends Notifier<bool> {
   @override
@@ -90,6 +91,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/help-requests',
         name: 'help-requests',
         builder: (context, state) => const HelpRequestsScreen(),
+      ),
+      GoRoute(
+        path: '/team-overview',
+        name: 'team-overview',
+        builder: (context, state) => const TeamOverviewScreen(),
       ),
     ],
   );

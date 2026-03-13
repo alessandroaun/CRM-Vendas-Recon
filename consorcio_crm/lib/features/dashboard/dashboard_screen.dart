@@ -73,7 +73,7 @@ class DashboardScreen extends ConsumerWidget {
                     title: 'Visão Geral da Equipe',
                     subtitle: 'Acompanhe todas as negociações da filial',
                     onTap: () {
-                      // Será implementado na visão do supervisor
+                      context.push('/team-overview');
                     },
                   ),
                 ] else ...[
