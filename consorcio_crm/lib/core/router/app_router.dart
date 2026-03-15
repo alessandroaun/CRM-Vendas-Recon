@@ -5,11 +5,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/login_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/dashboard/team_overview_screen.dart';
+import '../../features/dashboard/main_navigation_screen.dart';
+import '../../features/help_requests/help_requests_screen.dart';
 import '../../features/client_manage/add_client_screen.dart';
 import '../../features/client_manage/client_list_screen.dart';
-import '../../features/help_requests/help_requests_screen.dart';
-import '../../features/dashboard/team_overview_screen.dart';
+import '../../features/dashboard/role_decider_screen.dart';
 
+// 1. A Inteligência de Autenticação REAL conectada ao Supabase
 class AuthNotifier extends Notifier<bool> {
   @override
   bool build() {
@@ -23,18 +26,16 @@ class AuthNotifier extends Notifier<bool> {
       }
     });
 
-    // Ao abrir o app, verifica se já existe uma sessão salva no celular/navegador
+    // Ao abrir o app, verifica se já existe uma sessão salva
     return Supabase.instance.client.auth.currentSession != null;
   }
 
-  // Método real de login se comunicando com o backend
+  // Método real de login se comunicando com o backend (Future<void>)
   Future<void> login(String email, String password) async {
     await Supabase.instance.client.auth.signInWithPassword(
       email: email,
       password: password,
     );
-    // Não precisamos alterar o `state` manualmente aqui porque o 
-    // listener `onAuthStateChange` ali em cima vai detectar o login e atualizar sozinho.
   }
 
   Future<void> logout() async {
@@ -42,10 +43,10 @@ class AuthNotifier extends Notifier<bool> {
   }
 }
 
-// Criando o provider com a nova classe
+// Criando o provider de autenticação
 final authStateProvider = NotifierProvider<AuthNotifier, bool>(AuthNotifier.new);
 
-// 2. Configuração do GoRouter (sem alterações na lógica de rotas)
+// 2. O Roteador Dinâmico
 final goRouterProvider = Provider<GoRouter>((ref) {
   final isLoggedIn = ref.watch(authStateProvider);
 
@@ -59,8 +60,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
       
+      // MUDANÇA AQUI: Agora o app redireciona para o novo esqueleto de navegação após o login
       if (isLoggedIn && isGoingToLogin) {
-        return '/dashboard';
+        return '/role-decider'; 
       }
 
       return null;
@@ -73,7 +75,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
-        path: '/dashboard',
+        path: '/dashboard', // Mantivemos a rota antiga caso precise acessar diretamente
         name: 'dashboard',
         builder: (context, state) => const DashboardScreen(),
       ),
@@ -81,11 +83,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/add-client',
         name: 'add-client',
         builder: (context, state) => const AddClientScreen(),
-      ),
-      GoRoute(
-        path: '/client-list',
-        name: 'client-list',
-        builder: (context, state) => const ClientListScreen(),
       ),
       GoRoute(
         path: '/help-requests',
@@ -96,6 +93,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/team-overview',
         name: 'team-overview',
         builder: (context, state) => const TeamOverviewScreen(),
+      ),
+      // Rota dinâmica que aceita a categoria do funil de vendas
+      GoRoute(
+        path: '/client-list/:category',
+        name: 'client-list',
+        builder: (context, state) {
+          final category = state.pathParameters['category'] ?? 'current';
+          return ClientListScreen(category: category);
+        },
+      ),
+      // NOVA ROTA: O Esqueleto principal com o menu inferior
+      GoRoute(
+        path: '/main-navigation',
+        name: 'main-navigation',
+        builder: (context, state) => const MainNavigationScreen(),
+      ),
+      GoRoute(
+        path: '/role-decider',
+        name: 'role-decider',
+        builder: (context, state) => const RoleDeciderScreen(),
       ),
     ],
   );

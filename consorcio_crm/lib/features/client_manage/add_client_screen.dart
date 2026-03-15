@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 
@@ -18,13 +17,14 @@ class _AddClientScreenState extends State<AddClientScreen> {
   final _infoController = TextEditingController();
   
   String _selectedInterest = 'Imóvel';
-  String _selectedStage = 'Prospecção';
+  String _selectedStage = 'Novo Cliente'; // Atualizado
   String _selectedCapture = 'Indicação';
   String _selectedPlan = 'Normal';
   bool _isLoading = false;
 
-  final List<String> _interests = ['Imóvel', 'Automóvel', 'Motocicleta', 'Veículos Pesados', 'Serviços'];
-  final List<String> _stages = ['Prospecção', 'Apresentação', 'Follow-up', 'Fechamento'];
+  // Sem Pesados
+  final List<String> _interests = ['Imóvel', 'Automóvel', 'Motocicleta', 'Serviços'];
+  final List<String> _stages = ['Novo Cliente', 'Em negociação', 'Cadastrado', 'Fechado'];
   final List<String> _captureTypes = ['Indicação', 'Visitas Externas', 'Leads da Empresa', 'Leads Próprios', 'Redes Sociais', 'P.A.P', 'Ação de Vendas'];
   final List<String> _planTypes = ['Normal', 'Light', 'Superlight'];
 
@@ -57,8 +57,18 @@ class _AddClientScreenState extends State<AddClientScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Prospect cadastrado com sucesso!'), backgroundColor: Color(0xFF10B981)));
-          context.pop(); 
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lead capturado e salvo na carteira!'), backgroundColor: Color(0xFF10B981)));
+          // Limpa o formulário em vez de fechar a tela (pois agora é uma aba)
+          _nameController.clear();
+          _phoneController.clear();
+          _creditController.clear();
+          _infoController.clear();
+          setState(() {
+            _selectedInterest = 'Imóvel';
+            _selectedStage = 'Novo Cliente';
+            _selectedCapture = 'Indicação';
+            _selectedPlan = 'Normal';
+          });
         }
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao cadastrar prospect.'), backgroundColor: Colors.red));
@@ -71,21 +81,21 @@ class _AddClientScreenState extends State<AddClientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF4F7FE),
       appBar: AppBar(
-        title: const Text('Cadastrar Prospect', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
-        backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white, elevation: 0,
+        title: const Text('Cadastrar Novo', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        backgroundColor: Colors.transparent, elevation: 0, centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 FadeInUp(
-                  duration: const Duration(milliseconds: 500),
+                  duration: const Duration(milliseconds: 400),
                   child: _buildSectionCard(
                     title: 'Dados Pessoais',
                     icon: Icons.person_outline_rounded,
@@ -98,7 +108,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
                 ),
                 const SizedBox(height: 24),
                 FadeInUp(
-                  duration: const Duration(milliseconds: 600),
+                  duration: const Duration(milliseconds: 500),
                   child: _buildSectionCard(
                     title: 'Qualificação da Cota',
                     icon: Icons.analytics_outlined,
@@ -113,7 +123,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
                 ),
                 const SizedBox(height: 24),
                 FadeInUp(
-                  duration: const Duration(milliseconds: 700),
+                  duration: const Duration(milliseconds: 600),
                   child: _buildSectionCard(
                     title: 'Estratégia e Funil',
                     icon: Icons.flag_outlined,
@@ -128,18 +138,19 @@ class _AddClientScreenState extends State<AddClientScreen> {
                 ),
                 const SizedBox(height: 40),
                 FadeInUp(
-                  duration: const Duration(milliseconds: 800),
+                  duration: const Duration(milliseconds: 700),
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _saveClient,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD97706),
+                      backgroundColor: const Color(0xFF4F46E5), // Indigo premium
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shadowColor: const Color(0xFF4F46E5).withOpacity(0.4),
                     ),
                     child: _isLoading
                         ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                        : const Text('Salvar na Carteira', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        : const Text('Salvar no Funil', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -154,18 +165,15 @@ class _AddClientScreenState extends State<AddClientScreen> {
   Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 8))]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFFD97706), size: 24),
+              Icon(icon, color: const Color(0xFF4F46E5), size: 24),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5)),
             ],
           ),
           const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Color(0xFFF1F5F9), thickness: 1.5)),
@@ -178,27 +186,16 @@ class _AddClientScreenState extends State<AddClientScreen> {
   Widget _buildPremiumInput({required TextEditingController controller, required String label, bool isRequired = false, bool isPhone = false, int maxLines = 1}) {
     return TextFormField(
       controller: controller, maxLines: maxLines,
-      textCapitalization: isPhone ? TextCapitalization.none : TextCapitalization.words,
-      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
-      decoration: InputDecoration(
-        labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 14),
-        filled: true, fillColor: const Color(0xFFF1F5F9),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      ),
+      textCapitalization: isPhone ? TextCapitalization.none : TextCapitalization.words, keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 13), filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)),
       validator: isRequired ? (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null : null,
     );
   }
 
   Widget _buildPremiumDropdown(String label, String value, List<String> items, Function(String?) onChanged) {
     return DropdownButtonFormField<String>(
-      value: value,
-      decoration: InputDecoration(
-        labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 14),
-        filled: true, fillColor: const Color(0xFFF1F5F9),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      ),
-      items: items.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)))).toList(),
-      onChanged: onChanged,
+      value: value, decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(color: Colors.black54, fontSize: 13), filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)),
+      items: items.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)))).toList(), onChanged: onChanged,
     );
   }
 }
