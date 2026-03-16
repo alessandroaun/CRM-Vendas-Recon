@@ -24,6 +24,8 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Ajustes', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
       ),
       body: profileAsync.when(
+        skipLoadingOnRefresh: false,
+        skipLoadingOnReload: false,
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
         error: (err, stack) => Center(child: Text('Erro ao carregar perfil: $err')),
         data: (profile) {
@@ -140,7 +142,19 @@ class SettingsScreen extends ConsumerWidget {
         content: const Text('Tem certeza que deseja desconectar sua conta do CRM?', style: TextStyle(color: Colors.black54)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold))),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () { Navigator.pop(ctx); ref.read(authStateProvider.notifier).logout(); }, child: const Text('Sim, Sair', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), 
+            onPressed: () { 
+              Navigator.pop(ctx); 
+              
+              // 1. Apaga os dados do usuário atual da memória do Riverpod
+              ref.invalidate(userProfileProvider);
+              
+              // 2. Chama a função de logout oficial da sua arquitetura
+              ref.read(authStateProvider.notifier).logout(); 
+            }, 
+            child: const Text('Sim, Sair', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+          ),
         ],
       ),
     );

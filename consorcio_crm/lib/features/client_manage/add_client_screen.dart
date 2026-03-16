@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AddClientScreen extends StatefulWidget {
+import '../auth/profile_provider.dart'; // Importante para pegarmos o teamId do vendedor
+
+class AddClientScreen extends ConsumerStatefulWidget {
   const AddClientScreen({super.key});
 
   @override
-  State<AddClientScreen> createState() => _AddClientScreenState();
+  ConsumerState<AddClientScreen> createState() => _AddClientScreenState();
 }
 
-class _AddClientScreenState extends State<AddClientScreen> {
+class _AddClientScreenState extends ConsumerState<AddClientScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -41,37 +44,31 @@ class _AddClientScreenState extends State<AddClientScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      try {
-        final userId = Supabase.instance.client.auth.currentUser!.id;
+      // --- CÓDIGO NOVO: PEGANDO A EQUIPE DO VENDEDOR ---
+      final profile = ref.read(userProfileProvider).value; 
+      final userTeamId = profile?.teamId;
+      // ------------------------------------------------
 
+      try {
         await Supabase.instance.client.from('clients').insert({
-          'vendedor_id': userId,
+          'vendedor_id': Supabase.instance.client.auth.currentUser!.id,
+          'team_id': userTeamId, // <--- CÓDIGO NOVO: SALVANDO A EQUIPE NO BANCO
           'name': _nameController.text.trim(),
           'phone': _phoneController.text.trim(),
           'interest': _selectedInterest,
           'stage': _selectedStage,
           'credit_value': _creditController.text.trim(),
-          'capture_type': _selectedCapture,
+          'capture_type': _selectedCapture, 
           'plan_type': _selectedPlan,
           'additional_info': _infoController.text.trim(),
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lead capturado e salvo na carteira!'), backgroundColor: Color(0xFF10B981)));
-          // Limpa o formulário em vez de fechar a tela (pois agora é uma aba)
-          _nameController.clear();
-          _phoneController.clear();
-          _creditController.clear();
-          _infoController.clear();
-          setState(() {
-            _selectedInterest = 'Imóvel';
-            _selectedStage = 'Novo Cliente';
-            _selectedCapture = 'Indicação';
-            _selectedPlan = 'Normal';
-          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente cadastrado com sucesso!'), backgroundColor: Color(0xFF10B981)));
+          Navigator.pop(context);
         }
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao cadastrar prospect.'), backgroundColor: Colors.red));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao salvar cliente.'), backgroundColor: Colors.red));
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
@@ -8,12 +9,37 @@ import 'package:url_launcher/url_launcher.dart';
 import '../auth/profile_provider.dart';
 import '../client_manage/add_team_client_screen.dart';
 import 'team_overview_screen.dart' show teamClientsProvider, teamMembersProvider;
+import 'team_funnel_screen.dart'; // <--- Necessário para o botão de navegação
+
+// --- MÁSCARA DE DATA ---
+class DateTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    String text = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (text.length > 8) text = text.substring(0, 8);
+    String newText = '';
+    for (int i = 0; i < text.length; i++) {
+      if (i == 2 || i == 4) newText += '/';
+      newText += text[i];
+    }
+    return TextEditingValue(text: newText, selection: TextSelection.collapsed(offset: newText.length));
+  }
+}
 
 // ------------------------------------------------------------------------
 // TELA 1: O HUB DO FUNIL DA EQUIPA
 // ------------------------------------------------------------------------
-class TeamFunnelScreen extends ConsumerWidget {
+class TeamFunnelScreen extends ConsumerStatefulWidget {
   const TeamFunnelScreen({super.key});
+
+  @override
+  ConsumerState<TeamFunnelScreen> createState() => _TeamFunnelScreenState();
+}
+
+class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
+  int _selectedFilterIndex = 0; // Padrão: Mês Atual
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
   double _parseCurrency(String value) {
     if (value.isEmpty) return 0.0;
@@ -24,8 +50,69 @@ class TeamFunnelScreen extends ConsumerWidget {
     return double.tryParse(clean) ?? 0.0;
   }
 
+  void _showCustomDateDialog(BuildContext context) {
+    final startCtrl = TextEditingController(text: _customStartDate != null ? DateFormat('dd/MM/yyyy').format(_customStartDate!) : '');
+    final endCtrl = TextEditingController(text: _customEndDate != null ? DateFormat('dd/MM/yyyy').format(_customEndDate!) : '');
+
+    showDialog(
+      context: context, barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Período Personalizado', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Filtre o funil da sua equipe:', style: TextStyle(color: Colors.black54, fontSize: 13)),
+            const SizedBox(height: 20),
+            TextField(controller: startCtrl, keyboardType: TextInputType.number, inputFormatters: [DateTextFormatter()], decoration: InputDecoration(labelText: 'Data Inicial', hintText: 'DD/MM/AAAA', filled: true, fillColor: const Color(0xFFF4F7FE), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF4F46E5)))),
+            const SizedBox(height: 12),
+            TextField(controller: endCtrl, keyboardType: TextInputType.number, inputFormatters: [DateTextFormatter()], decoration: InputDecoration(labelText: 'Data Final', hintText: 'DD/MM/AAAA', filled: true, fillColor: const Color(0xFFF4F7FE), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.calendar_month_rounded, size: 18, color: Color(0xFF4F46E5)))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () { Navigator.pop(ctx); if (_customStartDate == null) setState(() => _selectedFilterIndex = 0); }, child: const Text('Cancelar', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              try {
+                final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
+                final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
+                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A data inicial não pode ser maior que a final.'))); return; }
+                setState(() { _customStartDate = start; _customEndDate = end; _selectedFilterIndex = 2; });
+                Navigator.pop(ctx);
+              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, digite datas válidas.'))); }
+            },
+            child: const Text('Aplicar Filtro', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )
+    );
+  }
+
+  Widget _buildFilterChip(String label, int index) {
+    final isSelected = _selectedFilterIndex == index;
+    String displayLabel = label;
+    if (index == 2 && isSelected && _customStartDate != null && _customEndDate != null) {
+      displayLabel = '${DateFormat('dd/MM/yy').format(_customStartDate!)} a ${DateFormat('dd/MM/yy').format(_customEndDate!)}';
+    }
+    return GestureDetector(
+      onTap: () { if (index == 2) { _showCustomDateDialog(context); } else { setState(() => _selectedFilterIndex = index); } },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(color: isSelected ? const Color(0xFF0F172A) : Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF0F172A).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [], border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0))),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (index == 2 && !isSelected) ...[const Icon(Icons.edit_calendar_rounded, size: 14, color: Color(0xFF64748B)), const SizedBox(width: 6)],
+            Text(displayLabel, style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
@@ -34,26 +121,36 @@ class TeamFunnelScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent, elevation: 0, centerTitle: true,
         title: const Text('Funil Geral', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
       ),
-      // Botão Flutuante Superior Direito para adicionar Leads
-      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
-      floatingActionButton: profileAsync.whenData((p) => p?.teamId != null ? Padding(
-        padding: const EdgeInsets.only(top: 16.0),
-        child: FloatingActionButton.extended(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddTeamClientScreen(teamId: p!.teamId!))),
-          backgroundColor: const Color(0xFFF59E0B), elevation: 4,
-          icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
-          label: const Text('Distribuir', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-        ),
-      ) : const SizedBox.shrink()).value,
+
+      // --- ADICIONE ESTE BLOCO AQUI ---
+      floatingActionButton: profileAsync.whenData((p) {
+        if (p?.teamId != null) {
+          return FloatingActionButton.extended(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddTeamClientScreen(teamId: p!.teamId!))),
+            backgroundColor: const Color(0xFFF59E0B), 
+            elevation: 4,
+            icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+            label: const Text('Novo Cliente', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          );
+        }
+        return const SizedBox.shrink();
+      }).value ?? const SizedBox.shrink(),
+      // --------------------------------
+
       body: profileAsync.when(
+        skipLoadingOnRefresh: false,
+        skipLoadingOnReload: false,
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),
         error: (err, stack) => Center(child: Text('Erro: $err')),
         data: (profile) {
-          if (profile == null || profile.teamId == null) return const Center(child: Text('Sem equipa vinculada.'));
+          if (profile == null || profile.teamId == null) return const Center(child: Text('Sem equipe vinculada.'));
           final teamId = profile.teamId!;
           final clientsAsync = ref.watch(teamClientsProvider(teamId));
           final currencyFormatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-          final currentMonthName = DateFormat('MMMM', 'pt_BR').format(DateTime.now());
+          
+          // Mês com primeira letra maiúscula
+          String currentMonthName = DateFormat('MMMM', 'pt_BR').format(DateTime.now());
+          currentMonthName = currentMonthName[0].toUpperCase() + currentMonthName.substring(1);
 
           return clientsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),
@@ -64,22 +161,61 @@ class TeamFunnelScreen extends ConsumerWidget {
               int countProducao = 0, countCarteira = 0, countFechados = 0, countDesistentes = 0;
 
               for (var c in clients) {
-                final val = _parseCurrency(c['credit_value'] ?? '');
                 final createdAt = DateTime.parse(c['created_at']);
                 final isCurrentMonth = createdAt.year == now.year && createdAt.month == now.month;
+                final val = _parseCurrency(c['credit_value'] ?? '');
                 final stage = c['stage'] ?? 'Novo Cliente';
 
-                if (stage == 'Fechado') { totalFechados += val; countFechados++; } 
-                else if (stage == 'Desistente') { totalDesistentes += val; countDesistentes++; } 
-                else if (isCurrentMonth) { totalProducao += val; countProducao++; } 
-                else { totalCarteira += val; countCarteira++; }
+                // 1. PRODUÇÃO DO MÊS: Ignora os filtros de data (é SEMPRE do mês atual)
+                if (isCurrentMonth && stage != 'Fechado' && stage != 'Desistente') {
+                  totalProducao += val; 
+                  countProducao++;
+                }
+
+                // 2. Filtro de tempo APENAS para as outras gavetas
+                bool passesDateFilter = false;
+                if (_selectedFilterIndex == 1) {
+                  passesDateFilter = true; // Todo o Período
+                } else if (_selectedFilterIndex == 0) {
+                  passesDateFilter = isCurrentMonth; // Mês Atual
+                } else if (_selectedFilterIndex == 2 && _customStartDate != null && _customEndDate != null) {
+                  passesDateFilter = createdAt.isAfter(_customStartDate!.subtract(const Duration(seconds: 1))) && 
+                                     createdAt.isBefore(_customEndDate!.add(const Duration(seconds: 1)));
+                }
+
+                if (!passesDateFilter) continue; // Pula se não passar no filtro
+
+                // Contabiliza as outras categorias respeitando o filtro
+                if (stage == 'Fechado') { 
+                  totalFechados += val; countFechados++; 
+                } else if (stage == 'Desistente') { 
+                  totalDesistentes += val; countDesistentes++; 
+                } else if (!isCurrentMonth && stage != 'Fechado' && stage != 'Desistente') { 
+                  totalCarteira += val; countCarteira++; 
+                }
               }
 
               return ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                 children: [
-                  FadeInDown(child: const Text('Selecione a Gaveta da Equipa', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
+                  FadeInDown(child: const Text('Selecione a Gaveta da Equipe', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)))),
                   const SizedBox(height: 16),
+                  
+                  // Pílulas de Filtro do Hub
+                  FadeIn(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('Mês Atual', 0), const SizedBox(width: 12),
+                          _buildFilterChip('Todo o Período', 1), const SizedBox(width: 12),
+                          _buildFilterChip('Personalizado', 2),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   FadeInUp(delay: const Duration(milliseconds: 100), child: _buildHubCard(context, teamId, 'Produção de $currentMonthName', 'Prospecções do mês', totalProducao, countProducao, currencyFormatter, 'producao', const Color(0xFFF59E0B), Icons.calendar_month_rounded)),
                   const SizedBox(height: 16),
                   FadeInUp(delay: const Duration(milliseconds: 200), child: _buildHubCard(context, teamId, 'Carteira de Negociação', 'Pendências de meses anteriores', totalCarteira, countCarteira, currencyFormatter, 'carteira', const Color(0xFF0EA5E9), Icons.hourglass_top_rounded)),
@@ -106,7 +242,7 @@ class TeamFunnelScreen extends ConsumerWidget {
           children: [
             Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 28)),
             const SizedBox(width: 16),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.3)), Text('$count clientes na equipa', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))), const SizedBox(height: 8), Text(formatter.format(total), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color, letterSpacing: -0.5))])),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.3)), Text('$count clientes na equipe', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))), const SizedBox(height: 8), Text(formatter.format(total), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color, letterSpacing: -0.5))])),
             const Icon(Icons.chevron_right_rounded, color: Colors.black26),
           ],
         ),
@@ -122,7 +258,9 @@ class TeamFunnelListScreen extends ConsumerStatefulWidget {
   final String teamId;
   final String category;
   final String title;
-  const TeamFunnelListScreen({super.key, required this.teamId, required this.category, required this.title});
+  final String? initialSellerId; // <--- NOVO PARÂMETRO
+
+  const TeamFunnelListScreen({super.key, required this.teamId, required this.category, required this.title, this.initialSellerId});
 
   @override
   ConsumerState<TeamFunnelListScreen> createState() => _TeamFunnelListScreenState();
@@ -131,18 +269,68 @@ class TeamFunnelListScreen extends ConsumerStatefulWidget {
 class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
   bool _isSearching = false;
   String _searchQuery = '';
+  
+  int _dateFilterIndex = 1; 
+  DateTime? _startDate;
+  DateTime? _endDate;
+
   String? _selectedStage; 
   String? _selectedSegment; 
-  String? _selectedSellerId; // NOVO FILTRO DE VENDEDOR
+  String? _selectedSellerId; 
 
   final TextEditingController _searchController = TextEditingController();
   final List<String> _stages = ['Novo Cliente', 'Em negociação', 'Cadastrado'];
   final List<String> _segments = ['Imóvel', 'Automóvel', 'Motocicleta', 'Serviços'];
 
+  // <--- ADICIONE ESTE BLOCO INIT STATE ---
+  @override
+  void initState() {
+    super.initState();
+    _selectedSellerId = widget.initialSellerId; // Define o vendedor logo ao abrir a tela
+  }
+  // ----------------------------------------
+
   @override
   void dispose() { _searchController.dispose(); super.dispose(); }
+// ... (mantenha o resto do arquivo igualzinho)
 
-  // CAIXA DE FILTROS FLUTUANTE ADAPTADA (Segmentos e Vendedores)
+  void _showCustomDateDialog() {
+    final startCtrl = TextEditingController(text: _startDate != null ? DateFormat('dd/MM/yyyy').format(_startDate!) : '');
+    final endCtrl = TextEditingController(text: _endDate != null ? DateFormat('dd/MM/yyyy').format(_endDate!) : '');
+
+    showDialog(
+      context: context, barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Período Personalizado', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(controller: startCtrl, keyboardType: TextInputType.number, inputFormatters: [DateTextFormatter()], decoration: InputDecoration(labelText: 'Data Inicial', hintText: 'DD/MM/AAAA', filled: true, fillColor: const Color(0xFFF4F7FE), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF4F46E5)))),
+            const SizedBox(height: 12),
+            TextField(controller: endCtrl, keyboardType: TextInputType.number, inputFormatters: [DateTextFormatter()], decoration: InputDecoration(labelText: 'Data Final', hintText: 'DD/MM/AAAA', filled: true, fillColor: const Color(0xFFF4F7FE), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.calendar_month_rounded, size: 18, color: Color(0xFF4F46E5)))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () { Navigator.pop(ctx); if (_startDate == null) setState(() => _dateFilterIndex = 1); }, child: const Text('Cancelar', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              try {
+                final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
+                final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
+                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data inicial maior que a final.'))); return; }
+                setState(() { _startDate = start; _endDate = end; _dateFilterIndex = 2; });
+                Navigator.pop(ctx);
+              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Datas inválidas.'))); }
+            },
+            child: const Text('Aplicar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )
+    );
+  }
+
   void _showAdvancedFilters(List<Map<String, dynamic>> sellers) {
     showModalBottomSheet(
       context: context, backgroundColor: Colors.transparent,
@@ -153,8 +341,26 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Só mostra o filtro de período se NÃO for a gaveta de Produção
+              if (widget.category != 'producao') ...[
+                const Text('Filtrar por Período', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildDateFilterChip('Mês Atual', 0, ctx), const SizedBox(width: 8),
+                      _buildDateFilterChip('Todo o Período', 1, ctx), const SizedBox(width: 8),
+                      _buildDateFilterChip('Personalizado', 2, ctx),
+                    ],
+                  ),
+                ),
+                const Divider(height: 32),
+              ],
+
               const Text('Filtrar por Vendedor', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
               const SizedBox(height: 12),
+              // ... (Mantenha o resto da função igual, com o Wrap dos sellers)
               Wrap(
                 spacing: 8, runSpacing: 8,
                 children: sellers.map((s) => ChoiceChip(
@@ -165,12 +371,14 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
                 )).toList(),
               ),
               const Divider(height: 32),
+              
               const Text('Filtrar por Segmento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
               const SizedBox(height: 12),
               ..._segments.map((seg) => _buildSegmentOption(seg)).toList(),
               const Divider(height: 32),
+              
               ListTile(
-                onTap: () { setState(() { _selectedSegment = null; _selectedSellerId = null; }); Navigator.pop(context); },
+                onTap: () { setState(() { _selectedSegment = null; _selectedSellerId = null; _dateFilterIndex = 1; }); Navigator.pop(context); },
                 leading: const Icon(Icons.clear_all_rounded, color: Colors.redAccent),
                 title: const Text('Limpar Todos os Filtros', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
@@ -178,6 +386,24 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDateFilterChip(String label, int index, BuildContext ctx) {
+    final isSelected = _dateFilterIndex == index;
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+      selected: isSelected,
+      selectedColor: const Color(0xFFF59E0B),
+      backgroundColor: const Color(0xFFF1F5F9),
+      onSelected: (val) {
+        Navigator.pop(ctx);
+        if (index == 2) {
+          _showCustomDateDialog();
+        } else {
+          setState(() => _dateFilterIndex = index);
+        }
+      },
     );
   }
 
@@ -233,7 +459,6 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
         error: (err, stack) => Center(child: Text('Erro: $err')),
         data: (allClients) {
           final now = DateTime.now();
-          // Mapeamento de Vendedores para os Cards
           Map<String, String> sellerNames = {};
           membersAsync.whenData((members) {
             for (var m in members) sellerNames[m['id']] = m['full_name'] ?? 'Desconhecido';
@@ -247,11 +472,28 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
             final name = (c['name'] ?? '').toString().toLowerCase();
             final vid = c['vendedor_id'];
 
+            bool matchesDate = false;
+            
+            if (widget.category == 'producao') {
+              matchesDate = true; // Produção ignora o filtro de data flutuante
+            } else {
+              if (_dateFilterIndex == 1) matchesDate = true;
+              else if (_dateFilterIndex == 0) matchesDate = isCurrentMonth;
+              else if (_dateFilterIndex == 2 && _startDate != null && _endDate != null) {
+                matchesDate = createdAt.isAfter(_startDate!.subtract(const Duration(seconds: 1))) && 
+                              createdAt.isBefore(_endDate!.add(const Duration(seconds: 1)));
+              }
+            }
+            
+            if (!matchesDate) return false;
+
+            // Resto dos filtros
             bool matchesCategory = false;
             if (widget.category == 'fechados') matchesCategory = stage == 'Fechado';
             else if (widget.category == 'desistentes') matchesCategory = stage == 'Desistente';
             else if (widget.category == 'producao') matchesCategory = isCurrentMonth && stage != 'Fechado' && stage != 'Desistente';
             else if (widget.category == 'carteira') matchesCategory = !isCurrentMonth && stage != 'Fechado' && stage != 'Desistente';
+            
             if (!matchesCategory) return false;
             if (_searchQuery.isNotEmpty && !name.contains(_searchQuery.toLowerCase())) return false;
             if (isFilteredCategory && _selectedStage != null && stage != _selectedStage) return false;
@@ -263,6 +505,13 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
             }
             return true;
           }).toList();
+
+          // Ordenação Decrescente por Data de Criação do Lead
+          filteredClients.sort((a, b) {
+            final dateA = DateTime.parse(a['created_at']);
+            final dateB = DateTime.parse(b['created_at']);
+            return dateB.compareTo(dateA); 
+          });
 
           return Column(
             children: [
@@ -294,7 +543,7 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
                       itemCount: filteredClients.length,
                       itemBuilder: (context, index) {
                         final client = filteredClients[index];
-                        final sellerFullName = sellerNames[client['vendedor_id']] ?? 'Equipa';
+                        final sellerFullName = sellerNames[client['vendedor_id']] ?? 'Equipe';
                         final sellerFirstName = sellerFullName.split(' ').first;
 
                         return FadeInUp(
@@ -364,11 +613,11 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
                           const SizedBox(height: 4), 
                           Row(
                             children: [
-                              Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)), child: Row(children: [const Icon(Icons.badge_rounded, size: 10, color: Color(0xFF64748B)), const SizedBox(width: 4), Text(widget.sellerFirstName, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))])),
-                              const SizedBox(width: 8),
-                              Text(widget.client['phone'], style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                            Flexible(child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.badge_rounded, size: 10, color: Color(0xFF64748B)), const SizedBox(width: 4), Flexible(child: Text(widget.sellerFirstName, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)), overflow: TextOverflow.ellipsis))]))),
+                            const SizedBox(width: 8),
+                            Text(widget.client['phone'], style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
                             ],
-                          )
+                          )   
                         ],
                       ),
                     ),
@@ -386,7 +635,11 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
                           children: [
                             const Divider(color: Color(0xFFF1F5F9), thickness: 1.5, height: 1),
                             const SizedBox(height: 16),
-                            Row(children: [_buildHighlight(Icons.monetization_on_rounded, creditText, const Color(0xFF10B981)), const SizedBox(width: 12), _buildHighlight(Icons.category_rounded, widget.client['interest'] ?? 'Serviços', const Color(0xFF3B82F6))]),
+                            Row(children: [
+                              Expanded(child: _buildHighlight(Icons.monetization_on_rounded, creditText, const Color(0xFF10B981))), 
+                              const SizedBox(width: 12), 
+                              Expanded(child: _buildHighlight(Icons.category_rounded, widget.client['interest'] ?? 'Serviços', const Color(0xFF3B82F6)))
+                            ]),
                             if (widget.client['additional_info'] != null && widget.client['additional_info'].toString().isNotEmpty) ...[
                               const SizedBox(height: 16), Text('Anotações: ${widget.client['additional_info']}', style: const TextStyle(fontSize: 13, color: Colors.black54, fontStyle: FontStyle.italic)),
                             ],
@@ -422,8 +675,8 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
   }
 
   Widget _buildHighlight(IconData icon, String text, Color color) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: color), const SizedBox(width: 6), Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12))]));
-  }
+  return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: color), const SizedBox(width: 6), Flexible(child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis))]));
+}
 
   Widget _buildActionButton(IconData icon, String label, Color color, Color bgColor, VoidCallback onTap) {
     return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12), child: Container(padding: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: color, size: 16), const SizedBox(width: 6), Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold))])));

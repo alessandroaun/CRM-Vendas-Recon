@@ -24,7 +24,7 @@ class UserProfile {
   }
 }
 
-final userProfileProvider = StreamProvider<UserProfile?>((ref) {
+final userProfileProvider = StreamProvider.autoDispose<UserProfile?>((ref) {
   final userId = Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return Stream.value(null);
 

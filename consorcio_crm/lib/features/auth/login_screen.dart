@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart'; // Animações de entrada
+import '../auth/profile_provider.dart';
 
 import '../../core/router/app_router.dart';
 
@@ -33,6 +34,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
+
+        // --- A MÁGICA ACONTECE AQUI ---
+        // Força o Riverpod a apagar o cache antigo e buscar o ID do novo usuário logado!
+        ref.invalidate(userProfileProvider);
+        // ------------------------------
+
       } on AuthException catch (e) {
         _showError('Erro no acesso: ${e.message}');
       } catch (e) {
