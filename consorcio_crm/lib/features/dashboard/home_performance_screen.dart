@@ -263,14 +263,14 @@ class _HomePerformanceScreenState extends State<HomePerformanceScreen> {
                       crossAxisCount: 2, 
                       crossAxisSpacing: 12, 
                       mainAxisSpacing: 12, 
-                      // Mude para 1.15. Isso dá um pouquinho mais de altura vertical aos cards
-                      childAspectRatio: 1.15, 
+                      // --- A MÁGICA DO TAMANHO AQUI (1.45 deixa compacto e retangular) ---
+                      childAspectRatio: 1.45, 
                       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        FadeInUp(delay: const Duration(milliseconds: 100), child: _buildMetricCard(title: 'Créditos Vendidos', value: currencyFormatter.format(totalCreditsSold), subtitle: 'Fechados no período', icon: Icons.verified_rounded, gradientColors: [const Color(0xFF34D399), const Color(0xFF10B981)])),
-                        FadeInUp(delay: const Duration(milliseconds: 200), child: _buildMetricCard(title: 'Em Negociação', value: currencyFormatter.format(totalNegotiationCredit), subtitle: 'Crédito no funil', icon: Icons.monetization_on_rounded, gradientColors: [const Color(0xFFA78BFA), const Color(0xFF8B5CF6)])),
-                        FadeInUp(delay: const Duration(milliseconds: 300), child: _buildMetricCard(title: 'Total Clientes', value: totalClients.toString(), subtitle: 'Cadastrados', icon: Icons.people_alt_rounded, gradientColors: [const Color(0xFF60A5FA), const Color(0xFF3B82F6)])),
-                        FadeInUp(delay: const Duration(milliseconds: 400), child: _buildMetricCard(title: 'Top Segmento', value: topSegment, subtitle: '$maxCount negociando', icon: Icons.star_rounded, gradientColors: [const Color(0xFFF472B6), const Color(0xFFEC4899)])),
+                        FadeInUp(delay: const Duration(milliseconds: 100), child: _buildMetricCard(title: 'Vendidos', value: currencyFormatter.format(totalCreditsSold), subtitle: 'Fechados no período', icon: Icons.verified_rounded, gradientColors: [const Color(0xFF34D399), const Color(0xFF10B981)])),
+                        FadeInUp(delay: const Duration(milliseconds: 200), child: _buildMetricCard(title: 'Negociando', value: currencyFormatter.format(totalNegotiationCredit), subtitle: 'Crédito no funil', icon: Icons.monetization_on_rounded, gradientColors: [const Color(0xFFA78BFA), const Color(0xFF8B5CF6)])),
+                        FadeInUp(delay: const Duration(milliseconds: 300), child: _buildMetricCard(title: 'Clientes', value: totalClients.toString(), subtitle: 'Cadastrados', icon: Icons.people_alt_rounded, gradientColors: [const Color(0xFF60A5FA), const Color(0xFF3B82F6)])),
+                        FadeInUp(delay: const Duration(milliseconds: 400), child: _buildMetricCard(title: 'Destaque', value: topSegment, subtitle: '$maxCount negociando', icon: Icons.star_rounded, gradientColors: [const Color(0xFFF472B6), const Color(0xFFEC4899)])),
                       ],
                     ),
                     const SizedBox(height: 32),
@@ -350,21 +350,23 @@ class _HomePerformanceScreenState extends State<HomePerformanceScreen> {
 
   Widget _buildMetricCard({required String title, required String value, required String subtitle, required IconData icon, required List<Color> gradientColors}) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12), // Padding reduzido para caber melhor
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             children: [
-              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: Colors.white, size: 16)),
-              const SizedBox(width: 8), Expanded(child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)), overflow: TextOverflow.ellipsis)),
+              Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: Colors.white, size: 14)),
+              const SizedBox(width: 8), 
+              // FittedBox garante que o título não vai cortar
+              Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B))))),
             ],
           ),
-          const SizedBox(height: 12),
-          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5))),
-          const SizedBox(height: 2), Text(subtitle, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+          const Spacer(), // Empurra os valores para a base do card
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5))),
+          const SizedBox(height: 2), 
+          Text(subtitle, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
         ],
       ),
     );

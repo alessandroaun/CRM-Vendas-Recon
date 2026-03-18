@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 
-// Reutilizamos o provedor para buscar os membros da equipe
-import '../dashboard/team_overview_screen.dart' show teamMembersProvider;
+// O provedor fica aqui solto, sem importar de outra tela
+final teamMembersProvider = StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, teamId) {
+  return Supabase.instance.client.from('profiles').stream(primaryKey: ['id']).eq('team_id', teamId);
+});
 
 class AddTeamClientScreen extends ConsumerStatefulWidget {
   final String teamId;

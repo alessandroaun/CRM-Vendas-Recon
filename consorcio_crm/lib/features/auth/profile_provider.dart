@@ -6,34 +6,39 @@ class UserProfile {
   final String fullName;
   final String role;
   final String? teamId;
+  final String? regiao; // <-- ADICIONAMOS A REGIÃO AQUI!
 
   UserProfile({
     required this.id,
     required this.fullName,
     required this.role,
     this.teamId,
+    this.regiao, // <-- ADICIONAMOS A REGIÃO AQUI!
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
       id: map['id'] ?? '',
       fullName: map['full_name'] ?? 'Usuário',
-      role: map['role'] ?? 'vendedor', // Se não tiver, assume que é vendedor
-      teamId: map['team_id'],
+      role: map['role'] ?? 'vendedor',
+      teamId: map['team_id']?.toString(),
+      regiao: map['regiao']?.toString(), // <-- ADICIONAMOS A LIDA DO BANCO DE DADOS AQUI!
     );
   }
 }
 
-final userProfileProvider = StreamProvider.autoDispose<UserProfile?>((ref) {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return Stream.value(null);
+final userProfileProvider = StreamProvider<UserProfile?>((ref) {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null) {
+    return Stream.value(null);
+  }
 
   return Supabase.instance.client
       .from('profiles')
       .stream(primaryKey: ['id'])
-      .eq('id', userId)
-      .map((data) {
-        if (data.isEmpty) return null;
-        return UserProfile.fromMap(data.first);
+      .eq('id', user.id)
+      .map((list) {
+        if (list.isEmpty) return null;
+        return UserProfile.fromMap(list.first);
       });
 });

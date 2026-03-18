@@ -539,16 +539,56 @@ class _ExpandableClientCardState extends State<_ExpandableClientCard> {
     try { await launchUrl(url, mode: LaunchMode.externalApplication); } catch (e) {}
   }
 
+  // --- NOVA FUNÇÃO: SOLICITAR AJUDA AO SUPERVISOR ---
+  void _requestHelp() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [Icon(Icons.sos_rounded, color: Colors.redAccent), SizedBox(width: 8), Text('Solicitar Ajuda', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))]),
+        content: TextField(
+          controller: ctrl, maxLines: 3,
+          decoration: InputDecoration(hintText: 'Descreva a situação e como o supervisor pode te ajudar com esse lead...', hintStyle: const TextStyle(fontSize: 13), filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.black54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              if (ctrl.text.trim().isEmpty) return;
+              await Supabase.instance.client.from('clients').update({
+                'is_help_mode': true,
+                'help_request_msg': ctrl.text.trim(),
+              }).eq('id', widget.client['id']);
+              if (mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ajuda solicitada com sucesso!'), backgroundColor: Color(0xFF10B981)));
+              }
+            },
+            child: const Text('Enviar Pedido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          )
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final stage = widget.client['stage'] ?? 'Novo Cliente';
     final creditText = widget.client['credit_value']?.toString().isEmpty ?? true ? 'Valor não definido' : widget.client['credit_value'];
+    
+    // VARIÁVEIS DO MODO AJUDA
+    final bool isHelpMode = widget.client['is_help_mode'] == true;
+    final String? supervisorMsg = widget.client['supervisor_suggestion'];
 
     return GestureDetector(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300), curve: Curves.easeInOut, margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: _isExpanded ? const Color(0xFFF59E0B).withOpacity(0.3) : Colors.transparent, width: 1.5), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 8))]),
+        // DESTAQUE VISUAL SE ESTIVER NO MODO AJUDA
+        decoration: BoxDecoration(color: isHelpMode ? const Color(0xFFFEF2F2) : Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: isHelpMode ? Colors.redAccent.withOpacity(0.5) : (_isExpanded ? const Color(0xFFF59E0B).withOpacity(0.3) : Colors.transparent), width: isHelpMode ? 2.0 : 1.5), boxShadow: [BoxShadow(color: isHelpMode ? Colors.redAccent.withOpacity(0.1) : Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 8))]),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: Column(
@@ -558,7 +598,7 @@ class _ExpandableClientCardState extends State<_ExpandableClientCard> {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Container(height: 48, width: 48, decoration: const BoxDecoration(color: Color(0xFFF4F7FE), shape: BoxShape.circle), child: const Icon(Icons.person_outline_rounded, color: Color(0xFF0F172A))),
+                    Container(height: 48, width: 48, decoration: BoxDecoration(color: isHelpMode ? Colors.redAccent.withOpacity(0.1) : const Color(0xFFF4F7FE), shape: BoxShape.circle), child: Icon(isHelpMode ? Icons.support_agent_rounded : Icons.person_outline_rounded, color: isHelpMode ? Colors.redAccent : const Color(0xFF0F172A))),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -590,13 +630,37 @@ class _ExpandableClientCardState extends State<_ExpandableClientCard> {
                               Expanded(child: _buildHighlight(Icons.category_rounded, widget.client['interest'] ?? 'Serviços', const Color(0xFF3B82F6)))
                             ]),
                             if (widget.client['additional_info'] != null && widget.client['additional_info'].toString().isNotEmpty) ...[
-                              const SizedBox(height: 16), Text('Anotações: ${widget.client['additional_info']}', style: const TextStyle(fontSize: 13, color: Colors.black54, fontStyle: FontStyle.italic)),
+                              const SizedBox(height: 16), Text('Suas Notas: ${widget.client['additional_info']}', style: const TextStyle(fontSize: 13, color: Colors.black54, fontStyle: FontStyle.italic)),
                             ],
+                            
+                            // EXIBIÇÃO DA ORIENTAÇÃO DO SUPERVISOR SE HOUVER
+                            if (isHelpMode && supervisorMsg != null && supervisorMsg.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity, padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3))),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  const Row(children: [Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF2563EB)), SizedBox(width: 6), Text('Orientação da Gestão:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)))]),
+                                  const SizedBox(height: 4), Text('"$supervisorMsg"', style: const TextStyle(fontSize: 13, color: Color(0xFF1E3A8A), fontStyle: FontStyle.italic)),
+                                ]),
+                              )
+                            ],
+
                             const SizedBox(height: 20),
                             Row(children: [
                               Expanded(child: _buildActionButton(Icons.phone_rounded, 'Ligar', const Color(0xFF3B82F6), const Color(0xFFEFF6FF), () => _executeAction('ligacao'))),
                               const SizedBox(width: 12), Expanded(child: _buildActionButton(Icons.chat_rounded, 'WhatsApp', const Color(0xFF10B981), const Color(0xFFECFDF5), () => _executeAction('whatsapp'))),
                             ]),
+                            
+                            // BOTÃO DE SOLICITAR AJUDA
+                            const SizedBox(height: 12),
+                            if (!isHelpMode)
+                              InkWell(
+                                onTap: _requestHelp, borderRadius: BorderRadius.circular(12),
+                                child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.redAccent.withOpacity(0.3))), child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.sos_rounded, color: Colors.redAccent, size: 18), SizedBox(width: 6), Text('Solicitar Ajuda do Supervisor', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold))])),
+                              )
+                            else 
+                              const Center(child: Text('Modo Ajuda Ativo - Acompanhamento em andamento', style: TextStyle(fontSize: 11, color: Colors.redAccent, fontWeight: FontWeight.bold))),
                           ],
                         ),
                       )

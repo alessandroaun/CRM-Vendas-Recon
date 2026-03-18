@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/router/app_router.dart';
 import '../auth/profile_provider.dart';
+import '../auth/admin_panel_screen.dart';
 
 // ==========================================
 // TELA PRINCIPAL DE AJUSTES
@@ -30,7 +31,21 @@ class SettingsScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Erro ao carregar perfil: $err')),
         data: (profile) {
           final fullName = profile?.fullName ?? 'Usuário';
-          final role = profile?.role == 'supervisor' ? 'Supervisão Regional' : 'Executivo de Vendas';
+          
+          // --- CORREÇÃO 1: NOME DO CARGO CORRETO NA TELA ---
+          String roleName = 'Executivo de Vendas';
+          final dbRole = profile?.role;
+          
+          if (dbRole == 'diretor' || dbRole == 'administrador') {
+            roleName = 'Diretoria Global';
+          } else if (dbRole == 'gerente') {
+            roleName = 'Gerência Regional';
+          } else if (dbRole == 'supervisor') {
+            roleName = 'Supervisão Regional';
+          } else if (dbRole == 'administrativo') {
+            roleName = 'Acesso Administrativo';
+          }
+
           final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
 
           return SingleChildScrollView(
@@ -57,7 +72,7 @@ class SettingsScreen extends ConsumerWidget {
                             children: [
                               Text(fullName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), letterSpacing: -0.5), overflow: TextOverflow.ellipsis),
                               const SizedBox(height: 4),
-                              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFF4F7FE), borderRadius: BorderRadius.circular(8)), child: Text(role, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)))),
+                              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFF4F7FE), borderRadius: BorderRadius.circular(8)), child: Text(roleName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)))),
                             ],
                           ),
                         ),
@@ -77,6 +92,17 @@ class SettingsScreen extends ConsumerWidget {
                     _buildSettingsItem(icon: Icons.notifications_none_rounded, iconColor: const Color(0xFFF59E0B), title: 'Notificações', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()))),
                     _buildDivider(),
                     _buildSettingsItem(icon: Icons.lock_outline_rounded, iconColor: const Color(0xFF10B981), title: 'Privacidade e Senha', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PasswordChangeScreen()))),
+                    
+                    // --- CORREÇÃO 2: LIBERAR O BOTÃO PARA DIRETOR E ADMINISTRADOR ---
+                    if (dbRole == 'gerente' || dbRole == 'diretor' || dbRole == 'administrador') ...[
+                      _buildDivider(),
+                      _buildSettingsItem(
+                        icon: Icons.admin_panel_settings_rounded, 
+                        iconColor: const Color(0xFF4F46E5), 
+                        title: 'Centro de Comando', // Aproveitei e mudei o nome do botão para ficar o padrão
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()))
+                      ),
+                    ],
                   ]),
                 ),
                 const SizedBox(height: 24),
@@ -88,7 +114,7 @@ class SettingsScreen extends ConsumerWidget {
                   child: _buildSettingsGroup([
                     _buildSettingsItem(icon: Icons.help_outline_rounded, iconColor: const Color(0xFF8B5CF6), title: 'Central de Ajuda', onTap: () => _showHelpCenter(context)),
                     _buildDivider(),
-                    _buildSettingsItem(icon: Icons.description_outlined, iconColor: const Color(0xFF64748B), title: 'Termos de Uso', onTap: () {}), // Esse geralmente é só um link para um site de termos
+                    _buildSettingsItem(icon: Icons.description_outlined, iconColor: const Color(0xFF64748B), title: 'Termos de Uso', onTap: () {}),
                   ]),
                 ),
                 const SizedBox(height: 40),

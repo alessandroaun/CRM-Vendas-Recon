@@ -23,8 +23,10 @@ class RoleDeciderScreen extends ConsumerWidget {
           }
 
           // A GRANDE DECISÃO:
-          if (profile.role == 'supervisor') {
-            return const SupervisorNavigationScreen(); // Abre o painel Master
+          final role = profile.role;
+          
+          if (role == 'supervisor' || role == 'gerente' || role == 'diretor' || role == 'administrador' || role == 'administrativo') {
+            return const SupervisorNavigationScreen(); // Abre o painel Master de Gestão
           } else {
             return const MainNavigationScreen(); // Abre o painel Padrão (Vendedor)
           }

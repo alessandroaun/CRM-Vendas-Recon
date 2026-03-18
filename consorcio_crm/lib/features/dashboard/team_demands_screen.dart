@@ -5,8 +5,15 @@ import 'package:animate_do/animate_do.dart';
 import 'package:intl/intl.dart';
 
 import '../auth/profile_provider.dart';
-// Reaproveitamos os provedores que já criamos para a equipe
-import 'team_overview_screen.dart' show teamClientsProvider, teamMembersProvider;
+
+// Cole os dois provedores aqui:
+final teamClientsProvider = StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, teamId) {
+  return Supabase.instance.client.from('clients').stream(primaryKey: ['id']).eq('team_id', teamId).order('created_at', ascending: false);
+});
+
+final teamMembersProvider = StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, teamId) {
+  return Supabase.instance.client.from('profiles').stream(primaryKey: ['id']).eq('team_id', teamId);
+});
 
 class TeamDemandsScreen extends ConsumerWidget {
   const TeamDemandsScreen({super.key});
