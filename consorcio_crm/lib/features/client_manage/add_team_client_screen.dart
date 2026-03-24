@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // NOVO: Para as máscaras
+import 'package:intl/intl.dart'; // NOVO: Para formatar R$
+import 'dart:math' as math; // NOVO: Para calcular o tamanho do texto
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 
-// O provedor fica aqui solto, sem importar de outra tela
 final teamMembersProvider = StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, teamId) {
   return Supabase.instance.client.from('profiles').stream(primaryKey: ['id']).eq('team_id', teamId);
 });
@@ -27,7 +29,7 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
   String _selectedStage = 'Novo Cliente';
   String _selectedCapture = 'Indicação';
   String _selectedPlan = 'Normal';
-  String? _selectedSellerId; // O ID do vendedor escolhido
+  String? _selectedSellerId; 
   bool _isLoading = false;
 
   final List<String> _interests = ['Imóvel', 'Automóvel', 'Motocicleta', 'Serviços'];
@@ -51,9 +53,20 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
         return;
       }
 
+      FocusScope.of(context).unfocus();
+      
       setState(() => _isLoading = true);
 
       try {
+        // --- NOVO: Cria a mensagem automática inicial da gestão ---
+        final initialHistory = [
+          {
+            'sender': 'supervisor',
+            'text': 'Novo lead distribuído pela gestão. Por favor, inicie o atendimento!',
+            'timestamp': DateTime.now().toIso8601String()
+          }
+        ];
+
         await Supabase.instance.client.from('clients').insert({
           'team_id': widget.teamId,
           'vendedor_id': _selectedSellerId,
@@ -65,16 +78,25 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
           'capture_type': _selectedCapture,
           'plan_type': _selectedPlan,
           'additional_info': _infoController.text.trim(),
+          
+          // --- NOVO: Gatilhos para notificar o vendedor ---
+          'is_help_mode': true,      // Faz o lead aparecer na aba "Avisos" do vendedor
+          'unread_vendedor': 1,      // Acende a bolinha vermelha de notificação
+          'phone_released': true,    // Como a gestão criou, o telefone já vai liberado para ambos
+          'chat_history': initialHistory, // Insere a mensagem inicial no chat do card
         });
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lead atribuído com sucesso!'), backgroundColor: Color(0xFF10B981)));
-          Navigator.pop(context); // Volta pro funil
-        }
+        await Future.delayed(const Duration(milliseconds: 150));
+
+        if (!context.mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lead atribuído com sucesso!'), backgroundColor: Color(0xFF10B981)));
+        Navigator.of(context).pop(); 
+        
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao atribuir lead.'), backgroundColor: Colors.red));
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao atribuir lead.'), backgroundColor: Colors.red));
+        setState(() => _isLoading = false); 
       }
     }
   }
@@ -109,14 +131,14 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
                         data: (members) {
                           final sellers = members.where((m) => m['role'] != 'supervisor').toList();
                           return DropdownButtonFormField<String>(
-                            isExpanded: true, // <--- CORREÇÃO AQUI
+                            isExpanded: true,
                             value: _selectedSellerId,
                             decoration: InputDecoration(labelText: 'Selecione o Vendedor', filled: true, fillColor: const Color(0xFFFFFBEB), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)),
                             items: sellers.map((s) => DropdownMenuItem(
                               value: s['id'].toString(), 
                               child: Text(
                                 s['full_name'] ?? 'Sem Nome', 
-                                overflow: TextOverflow.ellipsis, // <--- PROTEÇÃO DE TEXTO GRANDE
+                                overflow: TextOverflow.ellipsis, 
                                 style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF59E0B))
                               )
                             )).toList(),
@@ -137,6 +159,7 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
                     children: [
                       _buildPremiumInput(controller: _nameController, label: 'Nome Completo', isRequired: true),
                       const SizedBox(height: 16),
+                      // AQUI ATIVAMOS A MÁSCARA DE TELEFONE
                       _buildPremiumInput(controller: _phoneController, label: 'WhatsApp / Telefone', isPhone: true, isRequired: true),
                     ],
                   ),
@@ -148,7 +171,8 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
                     title: 'Qualificação',
                     icon: Icons.analytics_outlined,
                     children: [
-                      _buildPremiumInput(controller: _creditController, label: 'Valor do Crédito (Ex: R\$ 150.000)'),
+                      // AQUI ATIVAMOS A MÁSCARA DE DINHEIRO
+                      _buildPremiumInput(controller: _creditController, label: 'Valor do Crédito', isCurrency: true),
                       const SizedBox(height: 16),
                       _buildPremiumDropdown('Produto', _selectedInterest, _interests, (v) => setState(() => _selectedInterest = v!)),
                       const SizedBox(height: 16),
@@ -156,6 +180,23 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
                     ],
                   ),
                 ),
+                // --- NOVA SEÇÃO DE ESTRATÉGIA E FUNIL ADICIONADA ---
+                const SizedBox(height: 24),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 600),
+                  child: _buildSectionCard(
+                    title: 'Estratégia e Funil',
+                    icon: Icons.flag_outlined,
+                    children: [
+                      _buildPremiumDropdown('Tipo de Captação', _selectedCapture, _captureTypes, (v) => setState(() => _selectedCapture = v!)),
+                      const SizedBox(height: 16),
+                      _buildPremiumDropdown('Estágio Inicial', _selectedStage, _stages, (v) => setState(() => _selectedStage = v!)),
+                      const SizedBox(height: 16),
+                      _buildPremiumInput(controller: _infoController, label: 'Anotações Iniciais', maxLines: 3),
+                    ],
+                  ),
+                ),
+                // ----------------------------------------------------
                 const SizedBox(height: 40),
                 FadeInUp(
                   duration: const Duration(milliseconds: 700),
@@ -178,21 +219,78 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 8))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Icon(icon, color: const Color(0xFFF59E0B), size: 24), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)))]), const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Color(0xFFF1F5F9), thickness: 1.5)), ...children]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: const Color(0xFFF59E0B), size: 24), 
+              const SizedBox(width: 8), 
+              Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)), overflow: TextOverflow.ellipsis)),
+            ]
+          ), 
+          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Color(0xFFF1F5F9), thickness: 1.5)), 
+          ...children
+        ]
+      ),
     );
   }
 
-  Widget _buildPremiumInput({required TextEditingController controller, required String label, bool isRequired = false, bool isPhone = false}) {
-    return TextFormField(controller: controller, textCapitalization: isPhone ? TextCapitalization.none : TextCapitalization.words, keyboardType: isPhone ? TextInputType.phone : TextInputType.text, decoration: InputDecoration(labelText: label, filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)), validator: isRequired ? (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null : null);
+  // ATUALIZADO PARA ACEITAR AS MÁSCARAS AUTOMÁTICAS
+  Widget _buildPremiumInput({required TextEditingController controller, required String label, bool isRequired = false, bool isPhone = false, bool isCurrency = false, int maxLines = 1}) {
+    List<TextInputFormatter> formatters = [];
+    if (isPhone) formatters.add(PhoneInputFormatter());
+    if (isCurrency) formatters.add(CurrencyInputFormatter());
+
+    return TextFormField(
+      controller: controller, maxLines: maxLines,
+      textCapitalization: isPhone || isCurrency ? TextCapitalization.none : TextCapitalization.words, 
+      keyboardType: isPhone || isCurrency ? TextInputType.number : TextInputType.text,
+      inputFormatters: formatters,
+      decoration: InputDecoration(labelText: label, filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)), 
+      validator: isRequired ? (v) => v == null || v.isEmpty ? 'Campo obrigatório' : null : null
+    );
   }
 
   Widget _buildPremiumDropdown(String label, String value, List<String> items, Function(String?) onChanged) {
     return DropdownButtonFormField<String>(
-      isExpanded: true, // <--- CORREÇÃO AQUI
+      isExpanded: true,
       value: value, 
       decoration: InputDecoration(labelText: label, filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)), 
-      items: items.map((v) => DropdownMenuItem(value: v, child: Text(v, overflow: TextOverflow.ellipsis))).toList(), // <--- PROTEÇÃO DE TEXTO
+      items: items.map((v) => DropdownMenuItem(value: v, child: Text(v, overflow: TextOverflow.ellipsis))).toList(), 
       onChanged: onChanged
     );
+  }
+}
+
+// --- CLASSES DE MÁSCARA (NATIVAS DO FLUTTER) ---
+
+class PhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text.replaceAll(RegExp(r'\D'), '');
+    String formatted = '';
+    if (text.isNotEmpty) {
+      formatted = '(' + text.substring(0, math.min(text.length, 2));
+      if (text.length > 2) {
+        formatted += ') ' + text.substring(2, math.min(text.length, 7));
+        if (text.length > 7) {
+          formatted += '-' + text.substring(7, math.min(text.length, 11));
+        }
+      }
+    }
+    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+  }
+}
+
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    String text = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (text.isEmpty) text = '0';
+    double value = double.parse(text) / 100;
+    final formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+    String newText = formatter.format(value);
+    return TextEditingValue(text: newText, selection: TextSelection.collapsed(offset: newText.length));
   }
 }

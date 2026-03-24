@@ -350,20 +350,20 @@ class _HomePerformanceScreenState extends State<HomePerformanceScreen> {
 
   Widget _buildMetricCard({required String title, required String value, required String subtitle, required IconData icon, required List<Color> gradientColors}) {
     return Container(
-      padding: const EdgeInsets.all(12), // Padding reduzido para caber melhor
+      padding: const EdgeInsets.all(12), 
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center, // Centraliza o conteúdo verticalmente
         children: [
           Row(
             children: [
               Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: Colors.white, size: 14)),
               const SizedBox(width: 8), 
-              // FittedBox garante que o título não vai cortar
-              Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B))))),
+              Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B)), overflow: TextOverflow.ellipsis)),
             ],
           ),
-          const Spacer(), // Empurra os valores para a base do card
+          const SizedBox(height: 8), // Um espaçamento fixo e seguro substitui o Spacer()
           FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5))),
           const SizedBox(height: 2), 
           Text(subtitle, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),

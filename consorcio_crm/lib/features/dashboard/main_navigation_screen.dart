@@ -7,9 +7,16 @@ import '../client_manage/add_client_screen.dart';
 import '../client_manage/funnel_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../settings/settings_screen.dart';
-
-// Ajuste esse import se o caminho do seu admin_panel_screen for diferente!
 import '../auth/admin_panel_screen.dart'; 
+
+// --- PROVEDOR DE NOTIFICAÇÕES DO VENDEDOR ---
+final unreadVendedorProvider = StreamProvider.autoDispose<int>((ref) {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return const Stream.empty();
+  return Supabase.instance.client.from('clients').stream(primaryKey: ['id'])
+      .eq('vendedor_id', userId)
+      .map((list) => list.fold(0, (sum, item) => sum + (item['unread_vendedor'] as int? ?? 0)));
+});
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -20,8 +27,6 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _currentIndex = 0;
-  
-  // Variáveis para o controle de acesso
   String? _userRole;
   bool _isLoadingRole = true;
 
@@ -39,7 +44,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     _fetchUserRole();
   }
 
-  // Busca o cargo do usuário atual diretamente do banco de dados ao iniciar
   Future<void> _fetchUserRole() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -66,7 +70,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Tela de carregamento rápido enquanto descobre o cargo
     if (_isLoadingRole) {
       return const Scaffold(
         backgroundColor: Color(0xFFF4F7FE),
@@ -74,12 +77,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       );
     }
 
-    // 2. O BLOQUEIO: Se for administrativo, mostra APENAS o Centro de Comando
     if (_userRole == 'administrativo') {
       return const AdminPanelScreen();
     }
 
-    // 3. Se for vendedor, supervisor, gerente, diretor ou administrador... carrega o app normal!
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FE),
       body: IndexedStack(
@@ -110,17 +111,63 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               unselectedItemColor: const Color(0xFF94A3B8),
               selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+              // A MÁGICA ACONTECE AQUI:
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
                 BottomNavigationBarItem(icon: Icon(Icons.person_add_rounded), label: 'Cadastrar'),
                 BottomNavigationBarItem(icon: Icon(Icons.view_kanban_rounded), label: 'Funil'),
-                BottomNavigationBarItem(icon: Icon(Icons.notifications_rounded), label: 'Avisos'),
+                BottomNavigationBarItem(
+                  icon: NotificationBadge(icon: Icons.notifications_rounded), 
+                  label: 'Avisos'
+                ),
                 BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: 'Ajustes'),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// --- WIDGET DO SINO COM A BOLINHA VERMELHA (VENDEDOR) ---
+class NotificationBadge extends ConsumerWidget {
+  final IconData icon;
+
+  const NotificationBadge({super.key, required this.icon});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countAsync = ref.watch(unreadVendedorProvider);
+
+    return countAsync.when(
+      data: (count) {
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(icon, size: 26),
+            if (count > 0)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Center(
+                    child: Text(
+                      count > 99 ? '99+' : count.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+      loading: () => Icon(icon, size: 26),
+      error: (_, __) => Icon(icon, size: 26),
     );
   }
 }
