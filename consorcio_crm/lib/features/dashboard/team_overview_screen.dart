@@ -140,23 +140,40 @@ class _TeamOverviewScreenState extends ConsumerState<TeamOverviewScreen> {
             error: (err, stack) => Center(child: Text('Erro nas equipes: $err')),
             data: (allTeams) {
               
-              // 1. FILTRANDO AS EQUIPES VISÍVEIS BASEADO NO CARGO
+              // 1. FILTRANDO AS EQUIPES VISÍVEIS BASEADO NO CARGO (BLINDADO)
               List<Map<String, dynamic>> validTeams = [];
               if (role == 'diretor' || role == 'administrador') {
                 validTeams = allTeams;
               } else if (role == 'gerente') {
-                validTeams = allTeams.where((t) => t['regiao'] == profile.regiao).toList();
+                // Remove espaços e transforma tudo em minúsculo para não ter erro de digitação
+                final profRegion = profile.regiao?.trim().toLowerCase();
+                validTeams = allTeams.where((t) {
+                  final teamRegion = t['regiao']?.toString().trim().toLowerCase();
+                  return teamRegion != null && profRegion != null && teamRegion == profRegion;
+                }).toList();
+                
+                // Salva-vidas: Se o gerente também tiver uma equipe direta atrelada a ele, inclui ela
+                if (profile.teamId != null) {
+                  final extraTeams = allTeams.where((t) => t['id'].toString() == profile.teamId.toString());
+                  for (var et in extraTeams) {
+                    if (!validTeams.any((vt) => vt['id'] == et['id'])) validTeams.add(et);
+                  }
+                }
               } else {
-                validTeams = allTeams.where((t) => t['id'] == profile.teamId).toList();
+                // Força a conversão para String para evitar erro de (Int == String)
+                validTeams = allTeams.where((t) => t['id'].toString() == profile.teamId.toString()).toList();
               }
               
-              final validTeamIds = validTeams.map((t) => t['id'].toString()).toList();
+              final validTeamIds = validTeams.map((t) => t['id'].toString().trim()).toList();
 
               return profilesListAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),
                 error: (err, stack) => Center(child: Text('Erro nos perfis: $err')),
                 data: (allProfiles) {
-                  final validMembers = allProfiles.where((m) => validTeamIds.contains(m['team_id']?.toString())).toList();
+                  final validMembers = allProfiles.where((m) {
+                  final tId = m['team_id']?.toString().trim();
+                  return tId != null && validTeamIds.contains(tId);
+                    }).toList();
 
                   return clientsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),
@@ -164,13 +181,13 @@ class _TeamOverviewScreenState extends ConsumerState<TeamOverviewScreen> {
                     data: (allClients) {
                       
                       // FILTRO INTELIGENTE: Pega pela equipe anotada OU pelo vendedor
-                      final validSellerIds = validMembers.map((m) => m['id'].toString()).toSet();
-                      final validClients = allClients.where((c) {
-                        final cTeam = c['team_id']?.toString();
-                        final cVend = c['vendedor_id']?.toString();
-                        return validTeamIds.contains(cTeam) || validSellerIds.contains(cVend);
-                      }).toList();
+                      final validSellerIds = validMembers.map((m) => m['id'].toString().trim()).toSet();
 
+                      final validClients = allClients.where((c) {
+                      final cTeam = c['team_id']?.toString().trim();
+                      final cVend = c['vendedor_id']?.toString().trim();
+                  return validTeamIds.contains(cTeam) || validSellerIds.contains(cVend);
+                    }).toList();
                       final filteredClients = _filterClientsByDate(validClients);
 
                       // --- CÁLCULO DAS MÉTRICAS GERAIS ---
@@ -194,12 +211,12 @@ class _TeamOverviewScreenState extends ConsumerState<TeamOverviewScreen> {
                         if (interest == 'Veículos Pesados') interest = 'Automóvel';
                         double val = _parseCurrency(c['credit_value'] ?? '');
                         String stage = c['stage'] ?? 'Novo Cliente';
-                        String vid = c['vendedor_id'] ?? 'desconhecido';
-                        // IDENTIFICADOR DE EQUIPE INTELIGENTE
-                        String tid = c['team_id']?.toString() ?? '';
+                        String vid = c['vendedor_id']?.toString().trim() ?? 'desconhecido';
+
+                        String tid = c['team_id']?.toString().trim() ?? '';
                         if (tid.isEmpty || tid == 'null') {
-                          final seller = allProfiles.firstWhere((p) => p['id'].toString() == vid, orElse: () => {});
-                          tid = seller['team_id']?.toString() ?? 'desconhecido';
+                        final seller = allProfiles.firstWhere((p) => p['id'].toString().trim() == vid, orElse: () => {});
+                        tid = seller['team_id']?.toString().trim() ?? 'desconhecido';
                         }
 
                         // Estatísticas do Vendedor

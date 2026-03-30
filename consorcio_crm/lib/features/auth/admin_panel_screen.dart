@@ -28,7 +28,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  // CAMPO DE SENHA REMOVIDO DAQUI
   
   String _selectedRole = 'vendedor';
   bool _isLoading = false;
@@ -61,7 +61,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     _tabController.dispose();
     _nameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -87,19 +86,21 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   }
 
   // =========================================================
-  // ABA 1: NOVA CONTA 
+  // ABA 1: NOVA CONTA (AGORA VIA CONVITE)
   // =========================================================
-  void _createUser() async {
+  void _sendInvite() async {
     if (!_formKey.currentState!.validate()) return;
-    await _invokeAdminFunction('create_user', {
+    
+    // Mudamos a ação para 'invite_user' e removemos o envio de senha
+    await _invokeAdminFunction('invite_user', {
       'fullName': _nameController.text.trim(),
       'email': _emailController.text.trim(),
-      'password': _passwordController.text,
       'userRole': _selectedRole,
-    }, 'Conta criada com sucesso! (Vá em "Gerenciar" para atribuir equipe/região)');
+    }, 'Convite enviado com sucesso para ${_emailController.text.trim()}!');
     
     if (!_isLoading) {
-      _nameController.clear(); _emailController.clear(); _passwordController.clear();
+      _nameController.clear(); 
+      _emailController.clear();
       setState(() => _selectedRole = 'vendedor');
     }
   }
@@ -380,9 +381,8 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         bottom: TabBar(
           controller: _tabController, isScrollable: true, indicatorColor: const Color(0xFFD97706), labelColor: const Color(0xFFD97706), unselectedLabelColor: Colors.white70,
           tabs: [
-            const Tab(icon: Icon(Icons.person_add_rounded), text: 'Nova Conta'), 
+            const Tab(icon: Icon(Icons.mark_email_read_rounded), text: 'Convidar Conta'), // ICONE E TEXTO ATUALIZADOS
             const Tab(icon: Icon(Icons.manage_accounts_rounded), text: 'Gerenciar Contas'), 
-            // NOME DA TERCEIRA ABA DINÂMICO!
             Tab(icon: const Icon(Icons.business_rounded), text: _currentUserRole == 'gerente' ? 'Equipes' : 'Equipes/Regiões')
           ],
         ),
@@ -402,10 +402,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Dados Base', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))), const SizedBox(height: 16),
+                const Text('Dados do Novo Integrante', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))), const SizedBox(height: 16),
                 _buildTextField(controller: _nameController, label: 'Nome Completo', icon: Icons.person_outline), const SizedBox(height: 16),
-                _buildTextField(controller: _emailController, label: 'E-mail Corporativo', icon: Icons.email_outlined, isEmail: true), const SizedBox(height: 16),
-                _buildTextField(controller: _passwordController, label: 'Senha Inicial', icon: Icons.lock_outline, isPassword: true), const SizedBox(height: 24),
+                _buildTextField(controller: _emailController, label: 'E-mail Corporativo', icon: Icons.email_outlined, isEmail: true), const SizedBox(height: 24),
                 const Text('Nível de Acesso', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))), const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(16)),
@@ -426,12 +425,17 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                     ),
                   ),
                 ), const SizedBox(height: 32),
+                
+                // --- BOTÃO DE CONVITE ATUALIZADO ---
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _createUser,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _sendInvite,
                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                    child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Criar Conta Rápida', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.send_rounded, size: 18),
+                    label: _isLoading 
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                      : const Text('Enviar Convite para E-mail', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -454,27 +458,18 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         final teams = teamsAsync.value ?? [];
         final uniqueRegions = regionsAsync.value?.map((r) => r['name'].toString()).toList() ?? [];
 
-        // --- FILTRO DE ISOLAMENTO REGIONAL PARA GERENTES ---
         var displayProfiles = profiles;
         if (_currentUserRole == 'gerente') {
           displayProfiles = profiles.where((p) {
             final role = p['role'];
-            
-            // Oculta contas superiores da visão do gerente
             if (role == 'diretor' || role == 'administrador' || role == 'administrativo') return false;
-            
-            // Oculta contas de outros gerentes (para eles não se mexerem)
             if (role == 'gerente' && p['id'] != Supabase.instance.client.auth.currentUser?.id) return false;
-
-            // Busca a região atrelada à equipe deste usuário (se houver)
             final teamId = p['team_id'];
             String? teamRegion;
             if (teamId != null) {
               final tm = teams.firstWhere((t) => t['id'] == teamId, orElse: () => {});
               teamRegion = tm['regiao']?.toString();
             }
-
-            // Exibe apenas se for da região do gerente OU se a pessoa ainda não tem equipe/região (novatos órfãos)
             return p['regiao'] == _currentUserRegion || teamRegion == _currentUserRegion || (p['regiao'] == null && teamId == null);
           }).toList();
         }
@@ -505,7 +500,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                       const SizedBox(height: 16), Text('Gerenciar ${p['full_name']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), const Divider(),
                       ListTile(leading: const Icon(Icons.edit_note_rounded, color: Colors.green), title: const Text('Editar Dados'), onTap: () { Navigator.pop(ctx); _editUserPrompt(p['id'], p['full_name'] ?? '', role); }),
                       
-                      // Gerente não pode redefinir a própria região, apenas de outros
                       if (role == 'gerente' && _currentUserRole != 'gerente') 
                         ListTile(leading: const Icon(Icons.map_rounded, color: Colors.blue), title: const Text('Definir Região'), onTap: () { Navigator.pop(ctx); _assignRegionPrompt(p['id'], p['regiao']?.toString(), uniqueRegions); }),
                       
@@ -514,7 +508,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                       
                       ListTile(leading: const Icon(Icons.lock_reset_rounded, color: Colors.orange), title: const Text('Resetar Senha'), onTap: () { Navigator.pop(ctx); _resetPasswordPrompt(p['id']); }),
                       
-                      // Proteção: Ninguém exclui a si mesmo sem querer
                       if (p['id'] != Supabase.instance.client.auth.currentUser?.id)
                         ListTile(leading: const Icon(Icons.delete_forever_rounded, color: Colors.red), title: const Text('Excluir Conta', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(ctx); showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Excluir Conta?'), actions: [TextButton(onPressed: ()=>Navigator.pop(ctx), child: const Text('Cancelar')), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red), onPressed: (){Navigator.pop(ctx); _invokeAdminFunction('delete_user', {'targetUserId': p['id']}, 'Excluída!');}, child: const Text('Excluir', style: TextStyle(color: Colors.white))) ])); }),
                       
@@ -540,7 +533,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
       data: (teams) {
         final uniqueRegions = regionsAsync.value?.map((r) => r['name'].toString()).toList() ?? [];
 
-        // --- FILTRO DE EQUIPES DA REGIÃO DO GERENTE ---
         var displayTeams = teams;
         if (_currentUserRole == 'gerente') {
           displayTeams = teams.where((t) => t['regiao'] == _currentUserRegion).toList();
@@ -549,8 +541,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            
-            // SESSÃO DE REGIÕES (Oculta para o Gerente)
             if (_currentUserRole != 'gerente') ...[
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [ 
                 const Text('Regiões Globais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))), 
@@ -574,20 +564,17 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
               const Divider(height: 48),
             ],
             
-            // SESSÃO DE EQUIPES
-            // SESSÃO DE EQUIPES
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween, 
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [ 
-                // O Expanded força o texto a respeitar o limite da tela e quebrar a linha se precisar
                 Expanded(
                   child: Text(
                     _currentUserRole == 'gerente' ? 'Equipes da Minha Região' : 'Equipes Globais', 
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))
                   ),
                 ),
-                const SizedBox(width: 8), // Um pequeno respiro entre o texto e o botão
+                const SizedBox(width: 8), 
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white), 
                   onPressed: () => _manageTeamPrompt(uniqueRegions: uniqueRegions), 

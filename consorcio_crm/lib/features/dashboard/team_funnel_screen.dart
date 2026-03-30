@@ -154,11 +154,25 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
               if (role == 'diretor' || role == 'administrador') {
                 validTeams = allTeams;
               } else if (role == 'gerente') {
-                validTeams = allTeams.where((t) => t['regiao'] == profile.regiao).toList();
+                final profRegion = profile.regiao?.trim().toLowerCase();
+                validTeams = allTeams.where((t) {
+                  final teamRegion = t['regiao']?.toString().trim().toLowerCase();
+                  return teamRegion != null && profRegion != null && teamRegion == profRegion;
+                }).toList();
+                
+                if (profile.teamId != null) {
+                  final extraTeams = allTeams.where((t) => t['id'].toString() == profile.teamId.toString());
+                  for (var et in extraTeams) {
+                    if (!validTeams.any((vt) => vt['id'] == et['id'])) validTeams.add(et);
+                  }
+                }
               } else {
-                validTeams = allTeams.where((t) => t['id'] == profile.teamId).toList();
+                validTeams = allTeams.where((t) => t['id'].toString() == profile.teamId.toString()).toList();
               }
+              
+              // --- ESSA FOI A LINHA QUE EU TINHA ESQUECIDO DE TE PASSAR! ---
               final validTeamIds = validTeams.map((t) => t['id'].toString()).toList();
+              // -------------------------------------------------------------
 
               // ADICIONAMOS A LEITURA DE PERFIS AQUI PARA DESCOBRIR A EQUIPE DO VENDEDOR
               final profilesListAsync = ref.watch(allProfilesProvider);
@@ -501,10 +515,28 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
             error: (err, stack) => Center(child: Text('Erro: $err')),
             data: (allTeams) {
               List<Map<String, dynamic>> validTeams = [];
-              if (role == 'diretor' || role == 'administrador') validTeams = allTeams;
-              else if (role == 'gerente') validTeams = allTeams.where((t) => t['regiao'] == profile.regiao).toList();
-              else validTeams = allTeams.where((t) => t['id'] == profile.teamId).toList();
+              if (role == 'diretor' || role == 'administrador') {
+                validTeams = allTeams;
+              } else if (role == 'gerente') {
+                final profRegion = profile.regiao?.trim().toLowerCase();
+                validTeams = allTeams.where((t) {
+                  final teamRegion = t['regiao']?.toString().trim().toLowerCase();
+                  return teamRegion != null && profRegion != null && teamRegion == profRegion;
+                }).toList();
+                
+                if (profile.teamId != null) {
+                  final extraTeams = allTeams.where((t) => t['id'].toString() == profile.teamId.toString());
+                  for (var et in extraTeams) {
+                    if (!validTeams.any((vt) => vt['id'] == et['id'])) validTeams.add(et);
+                  }
+                }
+              } else {
+                validTeams = allTeams.where((t) => t['id'].toString() == profile.teamId.toString()).toList();
+              }
+              
+              // --- ESSA FOI A LINHA QUE EU TINHA ESQUECIDO DE TE PASSAR! ---
               final validTeamIds = validTeams.map((t) => t['id'].toString()).toList();
+              // -------------------------------------------------------------
 
               return profilesListAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),

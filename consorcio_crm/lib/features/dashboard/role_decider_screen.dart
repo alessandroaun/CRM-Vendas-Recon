@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/profile_provider.dart';
 import 'main_navigation_screen.dart'; // Menu do Vendedor
-import 'supervisor_navigation_screen.dart'; // Menu do Supervisor
+import 'supervisor_navigation_screen.dart'; // Menu do Supervisor/Gerente
+import 'admin_navigation_screen.dart'; // <-- NOVO: Menu do Administrativo
 
 class RoleDeciderScreen extends ConsumerWidget {
   const RoleDeciderScreen({super.key});
@@ -22,13 +23,19 @@ class RoleDeciderScreen extends ConsumerWidget {
             return const Center(child: Text('Perfil não encontrado. Fale com o suporte.'));
           }
 
-          // A GRANDE DECISÃO:
           final role = profile.role;
           
-          if (role == 'supervisor' || role == 'gerente' || role == 'diretor' || role == 'administrador' || role == 'administrativo') {
-            return const SupervisorNavigationScreen(); // Abre o painel Master de Gestão
-          } else {
-            return const MainNavigationScreen(); // Abre o painel Padrão (Vendedor)
+          // 1. Administrativo vai para o menu restrito
+          if (role == 'administrativo') {
+            return AdminNavigationScreen();
+          } 
+          // 2. Gestão vai para o menu Master (que depois filtraremos internamente)
+          else if (role == 'supervisor' || role == 'gerente' || role == 'diretor' || role == 'administrador') {
+            return const SupervisorNavigationScreen(); 
+          } 
+          // 3. Vendedor vai para o menu Padrão
+          else {
+            return const MainNavigationScreen(); 
           }
         },
       ),

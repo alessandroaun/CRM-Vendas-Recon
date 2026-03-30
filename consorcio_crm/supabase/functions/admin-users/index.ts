@@ -36,25 +36,29 @@ Deno.serve(async (req: Request) => {
     // 1. GERENCIAMENTO DE USUÁRIOS
     // ==========================================
 
-    if (action === 'create_user') {
+    // --- NOVA AÇÃO: CONVIDAR USUÁRIO POR E-MAIL ---
+    if (action === 'invite_user') {
       if (profile.role === 'administrativo' && ['diretor', 'administrativo', 'administrador'].includes(userRole)) {
-        throw new Error('Permissão negada: Administrativos não podem criar contas de alto nível.')
+        throw new Error('Permissão negada: Administrativos não podem convidar contas de alto nível.')
       }
       if (profile.role === 'gerente' && ['gerente', 'diretor', 'administrativo', 'administrador'].includes(userRole)) {
-        throw new Error('Permissão negada: Gerentes só podem criar contas de Vendedor e Supervisor.')
+        throw new Error('Permissão negada: Gerentes só podem convidar contas de Vendedor e Supervisor.')
       }
 
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: email, password: password, email_confirm: true,
-      })
+      // 1. Dispara o e-mail de convite do Supabase
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email)
       if (authError) throw authError
 
-      const { error: profileError } = await supabaseAdmin.from('profiles').insert({ 
-        id: authData.user.id, full_name: fullName, role: userRole, team_id: null, regiao: null
-      })
-      if (profileError) throw profileError
+      // 2. Insere os dados do usuário na tabela profiles imediatamente
+      // (Isso permite gerenciar o usuário no app antes mesmo de ele aceitar o convite)
+      if (authData && authData.user) {
+        const { error: profileError } = await supabaseAdmin.from('profiles').insert({ 
+          id: authData.user.id, full_name: fullName, role: userRole, team_id: null, regiao: null
+        })
+        if (profileError) throw profileError
+      }
 
-      return new Response(JSON.stringify({ success: true, message: 'Conta criada com sucesso!' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ success: true, message: 'Convite enviado para o e-mail!' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     if (action === 'delete_user') {
