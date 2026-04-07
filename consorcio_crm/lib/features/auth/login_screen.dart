@@ -4,6 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart'; // Animações de entrada
 import '../auth/profile_provider.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../../core/router/app_router.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -51,12 +54,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    showTopSnackBar(
+      Overlay.of(context),
+      CustomSnackBar.error(
+        message: message,
       ),
     );
   }

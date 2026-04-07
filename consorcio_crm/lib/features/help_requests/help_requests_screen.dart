@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 final helpRequestsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return Supabase.instance.client
       .from('clients')
@@ -54,11 +57,19 @@ class HelpRequestsScreen extends ConsumerWidget {
                       await Supabase.instance.client.from('clients').update({'supervisor_notes': noteController.text.trim(), 'needs_supervisor_help': false}).eq('id', clientId);
                       if (dialogContext.mounted) {
                         Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apoio enviado com sucesso!'), backgroundColor: Color(0xFF10B981)));
+                        showTopSnackBar(
+                          Overlay.of(context),
+                          const CustomSnackBar.success(message: 'Apoio enviado com sucesso!'),
+                        );
                       }
                     } catch (e) {
                       setState(() => isSaving = false);
-                      if (dialogContext.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao enviar.'), backgroundColor: Colors.red));
+                      if (dialogContext.mounted) {
+                        showTopSnackBar(
+                          Overlay.of(context),
+                          const CustomSnackBar.error(message: 'Erro ao enviar.'),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),

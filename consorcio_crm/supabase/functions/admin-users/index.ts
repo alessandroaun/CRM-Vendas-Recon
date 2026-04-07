@@ -36,7 +36,6 @@ Deno.serve(async (req: Request) => {
     // 1. GERENCIAMENTO DE USUÁRIOS
     // ==========================================
 
-    // --- NOVA AÇÃO: CONVIDAR USUÁRIO POR E-MAIL ---
     if (action === 'invite_user') {
       if (profile.role === 'administrativo' && ['diretor', 'administrativo', 'administrador'].includes(userRole)) {
         throw new Error('Permissão negada: Administrativos não podem convidar contas de alto nível.')
@@ -49,11 +48,10 @@ Deno.serve(async (req: Request) => {
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email)
       if (authError) throw authError
 
-      // 2. Insere os dados do usuário na tabela profiles imediatamente
-      // (Isso permite gerenciar o usuário no app antes mesmo de ele aceitar o convite)
+      // 2. Insere os dados na tabela profiles (incluindo o e-mail para acesso via frontend)
       if (authData && authData.user) {
         const { error: profileError } = await supabaseAdmin.from('profiles').insert({ 
-          id: authData.user.id, full_name: fullName, role: userRole, team_id: null, regiao: null
+          id: authData.user.id, full_name: fullName, role: userRole, team_id: null, regiao: null, email: email
         })
         if (profileError) throw profileError
       }
@@ -73,6 +71,22 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    // --- NOVA AÇÃO: DISPARO DE LINK DE RECUPERAÇÃO VIA BACKEND ---
+    if (action === 'send_reset_link') {
+      // Busca o registro do usuário na tabela oculta do sistema de autenticação
+      const { data: userData, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(targetUserId)
+      if (fetchError || !userData?.user) throw new Error('Usuário não encontrado no sistema de autenticação.')
+      
+      const targetEmail = userData.user.email
+      if (!targetEmail) throw new Error('O usuário não possui um e-mail oficial cadastrado.')
+
+      // Dispara o e-mail nativo de redefinição de senha
+      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(targetEmail)
+      if (resetError) throw resetError
+
+      return new Response(JSON.stringify({ success: true, message: 'Link de recuperação enviado com sucesso!' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     if (action === 'update_user') {
       if (profile.role === 'administrativo' && ['diretor', 'administrativo', 'administrador'].includes(userRole)) {
         throw new Error('Permissão negada: Administrativos não podem promover para este cargo.')
@@ -81,12 +95,20 @@ Deno.serve(async (req: Request) => {
         throw new Error('Permissão negada: Gerentes não podem promover usuários a cargos de gerência ou diretoria.')
       }
 
+      let profileUpdatePayload: any = { full_name: fullName, role: userRole }
+
       if (email && email.trim() !== '') {
-        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, { email: email, email_confirm: true })
+        // ATENÇÃO AQUI: email_confirm: false força o envio do e-mail de confirmação em vez de alterar direto.
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, { email: email, email_confirm: false })
         if (authError) throw authError
+        
+        // Adiciona o e-mail ao payload para refletir a alteração na tabela de visualização
+        profileUpdatePayload.email = email
       }
-      const { error: profileError } = await supabaseAdmin.from('profiles').update({ full_name: fullName, role: userRole }).eq('id', targetUserId)
+
+      const { error: profileError } = await supabaseAdmin.from('profiles').update(profileUpdatePayload).eq('id', targetUserId)
       if (profileError) throw profileError
+      
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
@@ -106,7 +128,6 @@ Deno.serve(async (req: Request) => {
     // 2. GERENCIAMENTO DE EQUIPES E REGIÕES
     // ==========================================
 
-    // Se for gerente criando ou editando equipe, forçamos a região a ser a MESMA do gerente
     if (action === 'create_team' || action === 'update_team_entity') {
       const finalRegion = profile.role === 'gerente' ? profile.regiao : regionName;
       

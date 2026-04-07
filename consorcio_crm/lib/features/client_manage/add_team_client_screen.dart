@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 final teamMembersProvider = StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, teamId) {
   return Supabase.instance.client.from('profiles').stream(primaryKey: ['id']).eq('team_id', teamId);
 });
@@ -49,7 +52,10 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
   Future<void> _saveClient() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedSellerId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Você precisa selecionar um vendedor para este lead!')));
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.error(message: 'Você precisa selecionar um vendedor para este lead!'),
+        );
         return;
       }
 
@@ -90,12 +96,18 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
 
         if (!context.mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lead atribuído com sucesso!'), backgroundColor: Color(0xFF10B981)));
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.success(message: 'Lead atribuído com sucesso!'),
+        );
         Navigator.of(context).pop(); 
         
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao atribuir lead.'), backgroundColor: Colors.red));
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.error(message: 'Erro ao atribuir lead.'),
+        );
         setState(() => _isLoading = false); 
       }
     }

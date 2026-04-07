@@ -41,6 +41,7 @@ dependencies:
   url_launcher: ^6.3.2
   animate_do: ^4.2.0
   intl: ^0.20.2
+  top_snackbar_flutter: ^3.3.0
 
 dev_dependencies:
   flutter_test:

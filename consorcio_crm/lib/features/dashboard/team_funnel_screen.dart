@@ -7,6 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../auth/profile_provider.dart';
 import '../client_manage/add_team_client_screen.dart';
 // Importa os provedores globais do arquivo anterior para usarmos a mesma base de dados em memória
@@ -36,7 +39,7 @@ class TeamFunnelScreen extends ConsumerStatefulWidget {
 }
 
 class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
-  int _selectedFilterIndex = 0; 
+  int _selectedFilterIndex = 1; 
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
@@ -76,10 +79,15 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
               try {
                 final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
                 final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
-                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A data inicial não pode ser maior que a final.'))); return; }
+                if (start.isAfter(end)) {
+                  showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'A data inicial não pode ser maior que a final.'));
+                  return;
+                }
                 setState(() { _customStartDate = start; _customEndDate = end; _selectedFilterIndex = 2; });
                 Navigator.pop(ctx);
-              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, digite datas válidas.'))); }
+              } catch (e) {
+                showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'Por favor, digite datas válidas.'));
+              }
             },
             child: const Text('Aplicar Filtro', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -207,7 +215,10 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
                         final val = _parseCurrency(c['credit_value'] ?? '');
                         final stage = c['stage'] ?? 'Novo Cliente';
 
-                        if (isCurrentMonth && stage != 'Fechado' && stage != 'Desistente') {
+                        // Verifica se é Desistente ou Excluído
+                        final isExcluded = stage == 'Desistente' || stage == 'Excluído';
+
+                        if (isCurrentMonth && stage != 'Fechado' && !isExcluded) {
                           totalProducao += val; countProducao++;
                         }
 
@@ -221,8 +232,8 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
                         if (!passesDateFilter) continue; 
 
                         if (stage == 'Fechado') { totalFechados += val; countFechados++; } 
-                        else if (stage == 'Desistente') { totalDesistentes += val; countDesistentes++; } 
-                        else if (!isCurrentMonth && stage != 'Fechado' && stage != 'Desistente') { totalCarteira += val; countCarteira++; }
+                        else if (isExcluded) { totalDesistentes += val; countDesistentes++; } 
+                        else if (!isCurrentMonth && stage != 'Fechado' && !isExcluded) { totalCarteira += val; countCarteira++; }
                       }
 
                       return ListView(
@@ -348,10 +359,15 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
               try {
                 final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
                 final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
-                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data inicial maior que a final.'))); return; }
+                if (start.isAfter(end)) {
+                  showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'Data inicial maior que a final.'));
+                  return;
+                }
                 setState(() { _startDate = start; _endDate = end; _dateFilterIndex = 2; });
                 Navigator.pop(ctx);
-              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Datas inválidas.'))); }
+              } catch (e) {
+                showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'Datas inválidas.'));
+              }
             },
             child: const Text('Aplicar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -613,10 +629,12 @@ class _TeamFunnelListScreenState extends ConsumerState<TeamFunnelListScreen> {
 
                           // 2. FILTRO DE GAVETA (Categoria)
                           bool matchesCategory = false;
+                          final isExcluded = stage == 'Desistente' || stage == 'Excluído';
+
                           if (widget.category == 'fechados') matchesCategory = stage == 'Fechado';
-                          else if (widget.category == 'desistentes') matchesCategory = stage == 'Desistente';
-                          else if (widget.category == 'producao') matchesCategory = isCurrentMonth && stage != 'Fechado' && stage != 'Desistente';
-                          else if (widget.category == 'carteira') matchesCategory = !isCurrentMonth && stage != 'Fechado' && stage != 'Desistente';
+                          else if (widget.category == 'desistentes') matchesCategory = isExcluded;
+                          else if (widget.category == 'producao') matchesCategory = isCurrentMonth && stage != 'Fechado' && !isExcluded;
+                          else if (widget.category == 'carteira') matchesCategory = !isCurrentMonth && stage != 'Fechado' && !isExcluded;
                           if (!matchesCategory) return false;
 
                           // 3. FILTROS DA TELA (Pesquisa, Fase, Hierarquia)
@@ -762,7 +780,9 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
       'is_help_mode': false,
       'phone_released': false, 
     }).eq('id', widget.client['id']);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Acompanhamento encerrado.'), backgroundColor: Colors.black54));
+    if (mounted) {
+      showTopSnackBar(Overlay.of(context), const CustomSnackBar.success(message: 'Acompanhamento encerrado.'));
+    }
   }
 
   // --- NOVA FUNÇÃO: DIÁLOGO DE EDIÇÃO DO GESTOR ---
@@ -1140,7 +1160,7 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
                       // Salva a nova fase no Supabase
                       await Supabase.instance.client.from('clients').update({'stage': s}).eq('id', widget.client['id']);
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cliente movido para $s'), backgroundColor: const Color(0xFF10B981)));
+                        showTopSnackBar(Overlay.of(context), CustomSnackBar.success(message: 'Cliente movido para $s'));
                       }
                     }
                   },

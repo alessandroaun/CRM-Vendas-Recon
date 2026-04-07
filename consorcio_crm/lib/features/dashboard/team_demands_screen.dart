@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../auth/profile_provider.dart';
 import 'team_overview_screen.dart'; // Puxa os provedores allClients, allTeams...
 
@@ -150,7 +153,12 @@ class _DemandClientCardState extends State<_DemandClientCard> {
       'is_help_mode': false,
       'phone_released': false, // Tranca o telefone de novo ao encerrar
     }).eq('id', widget.client['id']);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Acompanhamento encerrado.'), backgroundColor: Colors.black54));
+    if (mounted) {
+      showTopSnackBar(
+        Overlay.of(context),
+        const CustomSnackBar.success(message: 'Acompanhamento encerrado.'),
+      );
+    }
   }
 
   @override

@@ -5,6 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:animate_do/animate_do.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../auth/profile_provider.dart';
 import 'team_funnel_screen.dart'; 
 
@@ -77,10 +80,21 @@ class _TeamOverviewScreenState extends ConsumerState<TeamOverviewScreen> {
               try {
                 final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
                 final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
-                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A data inicial não pode ser maior que a final.'))); return; }
+                if (start.isAfter(end)) {
+                  showTopSnackBar(
+                    Overlay.of(context),
+                    const CustomSnackBar.error(message: 'A data inicial não pode ser maior que a final.'),
+                  );
+                  return;
+                }
                 setState(() { _customStartDate = start; _customEndDate = end; _selectedFilterIndex = 2; });
                 Navigator.pop(ctx);
-              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, digite datas válidas.'))); }
+              } catch (e) {
+                showTopSnackBar(
+                  Overlay.of(context),
+                  const CustomSnackBar.error(message: 'Por favor, digite datas válidas.'),
+                );
+              }
             },
             child: const Text('Aplicar Filtro', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),

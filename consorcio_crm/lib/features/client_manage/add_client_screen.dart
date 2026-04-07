@@ -6,6 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../auth/profile_provider.dart';
 
 class AddClientScreen extends ConsumerStatefulWidget {
@@ -80,8 +83,9 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
 
         if (!context.mounted) return; 
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cliente cadastrado com sucesso!'), backgroundColor: Color(0xFF10B981))
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.success(message: 'Cliente cadastrado com sucesso!'),
         );
         
         _nameController.clear();
@@ -99,8 +103,9 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
         
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao salvar cliente.'), backgroundColor: Colors.red)
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.error(message: 'Erro ao salvar cliente.'),
         );
         setState(() => _isLoading = false); 
       }

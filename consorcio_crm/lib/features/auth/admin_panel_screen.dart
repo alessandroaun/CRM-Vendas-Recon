@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 // --- PROVEDORES DE DADOS ---
 final teamsProvider = StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
   return Supabase.instance.client.from('teams').stream(primaryKey: ['id']).order('name');
@@ -28,7 +31,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  // CAMPO DE SENHA REMOVIDO DAQUI
   
   String _selectedRole = 'vendedor';
   bool _isLoading = false;
@@ -70,7 +72,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
       final body = {'action': action, ...bodyExtras};
       await Supabase.instance.client.functions.invoke('admin-users', body: body);
       
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage), backgroundColor: const Color(0xFF10B981)));
+      if (mounted) {
+        showTopSnackBar(Overlay.of(context), CustomSnackBar.success(message: successMessage));
+      }
 
       ref.invalidate(teamsProvider);
       ref.invalidate(allProfilesProvider);
@@ -78,7 +82,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
 
       return true;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        showTopSnackBar(Overlay.of(context), CustomSnackBar.error(message: 'Erro: $e'));
+      }
       return false;
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -86,12 +92,11 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   }
 
   // =========================================================
-  // ABA 1: NOVA CONTA (AGORA VIA CONVITE)
+  // ABA 1: NOVA CONTA (CONVITE)
   // =========================================================
   void _sendInvite() async {
     if (!_formKey.currentState!.validate()) return;
     
-    // Mudamos a ação para 'invite_user' e removemos o envio de senha
     await _invokeAdminFunction('invite_user', {
       'fullName': _nameController.text.trim(),
       'email': _emailController.text.trim(),
@@ -138,7 +143,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   void _assignTeamPrompt(String userId, String? currentTeamId, List<Map<String, dynamic>> teams) {
     String? newTeam = currentTeamId;
     
-    // Se for gerente, mostra apenas as equipes da região dele
     final availableTeams = _currentUserRole == 'gerente' 
         ? teams.where((t) => t['regiao'] == _currentUserRegion).toList() 
         : teams;
@@ -163,9 +167,10 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     ));
   }
 
-  void _editUserPrompt(String userId, String currentName, String currentRole) {
+  // --- FUNÇÃO ATUALIZADA: Editar Dados ---
+  void _editUserPrompt(String userId, String currentName, String currentRole, String? currentEmail) {
     final nameCtrl = TextEditingController(text: currentName);
-    final emailCtrl = TextEditingController();
+    final emailCtrl = TextEditingController(text: currentEmail ?? ''); 
     String selectedRole = currentRole;
 
     showDialog(context: context, builder: (ctx) => StatefulBuilder(
@@ -176,7 +181,8 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nome Completo')), const SizedBox(height: 16),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Novo E-mail (Opcional)')), const SizedBox(height: 16),
+              // RÓTULO ALTERADO CONFORME SOLICITADO
+              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Alterar E-mail de Cadastro')), const SizedBox(height: 16),
               DropdownButton<String>(
                 isExpanded: true, value: selectedRole,
                 items: [ 
@@ -194,8 +200,48 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
             ],
           ),
         ),
-        actions: [ TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)), onPressed: () { Navigator.pop(ctx); _invokeAdminFunction('update_user', { 'targetUserId': userId, 'fullName': nameCtrl.text.trim(), 'email': emailCtrl.text.trim(), 'userRole': selectedRole, }, 'Dados atualizados com sucesso!'); }, child: const Text('Salvar', style: TextStyle(color: Colors.white)),) ],
+        actions: [ 
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), 
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)), 
+            onPressed: () { 
+              Navigator.pop(ctx); 
+              _invokeAdminFunction('update_user', { 
+                'targetUserId': userId, 
+                'fullName': nameCtrl.text.trim(), 
+                'email': emailCtrl.text.trim(), 
+                'userRole': selectedRole, 
+              // MENSAGEM DE SUCESSO ATUALIZADA
+              }, 'Dados salvos! Se o e-mail foi alterado, um link de confirmação foi enviado.'); 
+            }, 
+            child: const Text('Salvar', style: TextStyle(color: Colors.white)),
+          ) 
+        ],
       ),
+    ));
+  }
+
+  // --- FUNÇÃO ATUALIZADA: Disparo via Backend ---
+  void _resetPasswordPrompt(String userId) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Resetar Senha', style: TextStyle(fontWeight: FontWeight.bold)), 
+      content: const Text('O sistema recuperará o e-mail oficial de cadastro deste usuário no banco de dados e enviará um link seguro para redefinição de senha.\n\nDeseja prosseguir?'),
+      actions: [ 
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), 
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)), 
+          onPressed: () { 
+            Navigator.pop(ctx); 
+            // Invoca a Edge Function passando apenas o ID. O servidor fará o resto.
+            _invokeAdminFunction(
+              'send_reset_link', 
+              {'targetUserId': userId}, 
+              'Link de recuperação enviado com sucesso!'
+            ); 
+          }, 
+          child: const Text('Enviar Link', style: TextStyle(color: Colors.white)),
+        ) 
+      ],
     ));
   }
 
@@ -276,7 +322,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   void _manageTeamPrompt({String? teamId, String? currentName, String? currentRegion, required List<String> uniqueRegions}) {
     final nameCtrl = TextEditingController(text: currentName);
     
-    // Se for gerente, a região dele já fica fixada e invisível
     String? selRegion = _currentUserRole == 'gerente' ? _currentUserRegion : currentRegion;
 
     showDialog(context: context, builder: (ctx) => StatefulBuilder(
@@ -381,7 +426,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         bottom: TabBar(
           controller: _tabController, isScrollable: true, indicatorColor: const Color(0xFFD97706), labelColor: const Color(0xFFD97706), unselectedLabelColor: Colors.white70,
           tabs: [
-            const Tab(icon: Icon(Icons.mark_email_read_rounded), text: 'Convidar Conta'), // ICONE E TEXTO ATUALIZADOS
+            const Tab(icon: Icon(Icons.mark_email_read_rounded), text: 'Convidar Conta'),
             const Tab(icon: Icon(Icons.manage_accounts_rounded), text: 'Gerenciar Contas'), 
             Tab(icon: const Icon(Icons.business_rounded), text: _currentUserRole == 'gerente' ? 'Equipes' : 'Equipes/Regiões')
           ],
@@ -426,7 +471,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                   ),
                 ), const SizedBox(height: 32),
                 
-                // --- BOTÃO DE CONVITE ATUALIZADO ---
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -498,7 +542,9 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                   showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))), builder: (ctx) => SafeArea(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       const SizedBox(height: 16), Text('Gerenciar ${p['full_name']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), const Divider(),
-                      ListTile(leading: const Icon(Icons.edit_note_rounded, color: Colors.green), title: const Text('Editar Dados'), onTap: () { Navigator.pop(ctx); _editUserPrompt(p['id'], p['full_name'] ?? '', role); }),
+                      
+                      // --- CHAMADAS ATUALIZADAS (Passando o e-mail) ---
+                      ListTile(leading: const Icon(Icons.edit_note_rounded, color: Colors.green), title: const Text('Editar Dados'), onTap: () { Navigator.pop(ctx); _editUserPrompt(p['id'], p['full_name'] ?? '', role, p['email']?.toString()); }),
                       
                       if (role == 'gerente' && _currentUserRole != 'gerente') 
                         ListTile(leading: const Icon(Icons.map_rounded, color: Colors.blue), title: const Text('Definir Região'), onTap: () { Navigator.pop(ctx); _assignRegionPrompt(p['id'], p['regiao']?.toString(), uniqueRegions); }),
@@ -617,13 +663,5 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
       decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20), filled: true, fillColor: const Color(0xFFF1F5F9), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
       validator: (val) { if (val == null || val.isEmpty) return 'Obrigatório'; if (isPassword && val.length < 6) return 'Mín. 6 caracteres'; return null; },
     );
-  }
-  
-  void _resetPasswordPrompt(String userId) {
-    final passCtrl = TextEditingController();
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Resetar Senha', style: TextStyle(fontWeight: FontWeight.bold)), content: TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Nova Senha', border: OutlineInputBorder())),
-      actions: [ TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)), onPressed: () { if (passCtrl.text.length < 6) return; Navigator.pop(ctx); _invokeAdminFunction('reset_password', {'targetUserId': userId, 'password': passCtrl.text}, 'Senha atualizada!'); }, child: const Text('Salvar Senha', style: TextStyle(color: Colors.white)),) ],
-    ));
   }
 }

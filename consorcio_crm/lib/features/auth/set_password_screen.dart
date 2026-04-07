@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/router/app_router.dart';
+
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 
 // Importe aqui a sua tela principal/dashboard para redirecionar após o sucesso
 // import '../dashboard/role_decider_screen.dart'; 
@@ -47,28 +51,58 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('As senhas não coincidem.'), backgroundColor: Colors.redAccent));
+      showTopSnackBar(
+        Overlay.of(context),
+        const CustomSnackBar.error(message: 'As senhas não coincidem.'),
+      );
+      return;
+    }
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      showTopSnackBar(
+        Overlay.of(context),
+        const CustomSnackBar.error(message: 'Sessão inválida ou link expirado. Solicite um novo convite.'),
+      );
+      ref.read(inviteLinkProvider.notifier).disable();
+      ref.read(goRouterProvider).go('/login');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // 1. Salva a senha nova no Supabase
       final response = await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: _passwordController.text),
       );
 
       if (response.user != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Senha configurada! Faça o login para continuar.'), backgroundColor: Color(0xFF10B981)));
+          showTopSnackBar(
+            Overlay.of(context),
+            const CustomSnackBar.success(message: 'Senha configurada! Faça o login para continuar.'),
+          );
         }
-        // 2. Isso obriga o app a deslogar a sessão temporária. 
-        // O GoRouter vai perceber o LogOut e vai te jogar perfeitamente para a tela de Login!
+        
+        // 1. DESLIGA a trava do roteador
+        ref.read(inviteLinkProvider.notifier).disable();
+        // 2. Encerra a sessão provisória
         await Supabase.instance.client.auth.signOut();
       }
+    } on AuthException catch (e) {
+      if (mounted) {
+        showTopSnackBar(
+          Overlay.of(context),
+          CustomSnackBar.error(message: 'Erro de autenticação: ${e.message}'),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar senha: $e'), backgroundColor: Colors.redAccent));
+      if (mounted) {
+        showTopSnackBar(
+          Overlay.of(context),
+          CustomSnackBar.error(message: 'Erro ao salvar senha: $e'),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

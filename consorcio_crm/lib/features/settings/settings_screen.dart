@@ -8,6 +8,9 @@ import '../../core/router/app_router.dart';
 import '../auth/profile_provider.dart';
 import '../auth/admin_panel_screen.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 // ==========================================
 // TELA PRINCIPAL DE AJUSTES
 // ==========================================
@@ -251,11 +254,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final userId = Supabase.instance.client.auth.currentUser!.id;
       await Supabase.instance.client.from('profiles').update({'full_name': _nameController.text.trim()}).eq('id', userId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil atualizado com sucesso!'), backgroundColor: Color(0xFF10B981)));
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.success(message: 'Perfil atualizado com sucesso!'),
+        );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao atualizar.'), backgroundColor: Colors.red));
+      if (mounted) {
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.error(message: 'Erro ao atualizar.'),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -349,18 +360,29 @@ class _PasswordChangeScreenState extends State<PasswordChangeScreen> {
 
   Future<void> _updatePassword() async {
     if (_passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A senha deve ter no mínimo 6 caracteres.')));
+      showTopSnackBar(
+        Overlay.of(context),
+        const CustomSnackBar.error(message: 'A senha deve ter no mínimo 6 caracteres.'),
+      );
       return;
     }
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.updateUser(UserAttributes(password: _passwordController.text));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Senha atualizada com segurança!'), backgroundColor: Color(0xFF10B981)));
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.success(message: 'Senha atualizada com segurança!'),
+        );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao atualizar senha.'), backgroundColor: Colors.red));
+      if (mounted) {
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.error(message: 'Erro ao atualizar senha.'),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

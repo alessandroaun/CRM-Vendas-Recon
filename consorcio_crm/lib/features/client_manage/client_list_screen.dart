@@ -6,6 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:intl/intl.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 final categorizedClientsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, category) {
   final userId = Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return const Stream.empty();
@@ -44,7 +47,12 @@ class ClientListScreen extends ConsumerWidget {
     try {
       await Supabase.instance.client.from('clients').update({'stage': newStage}).eq('id', clientId);
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao atualizar estágio.')));
+      if (context.mounted) {
+        showTopSnackBar(
+          Overlay.of(context),
+          const CustomSnackBar.error(message: 'Erro ao atualizar estágio.'),
+        );
+      }
     }
   }
 

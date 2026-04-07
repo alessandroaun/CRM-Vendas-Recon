@@ -7,6 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../auth/profile_provider.dart';
 
 // --- MÁSCARA DE DATA ---
@@ -45,7 +48,7 @@ class FunnelScreen extends ConsumerStatefulWidget {
 }
 
 class _FunnelScreenState extends ConsumerState<FunnelScreen> {
-  int _selectedFilterIndex = 0; // Padrão: Mês Atual
+  int _selectedFilterIndex = 1; // Padrão: Mês Atual
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
@@ -85,10 +88,15 @@ class _FunnelScreenState extends ConsumerState<FunnelScreen> {
               try {
                 final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
                 final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
-                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A data inicial não pode ser maior que a final.'))); return; }
+                if (start.isAfter(end)) {
+                  showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'A data inicial não pode ser maior que a final.'));
+                  return;
+                }
                 setState(() { _customStartDate = start; _customEndDate = end; _selectedFilterIndex = 2; });
                 Navigator.pop(ctx);
-              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, digite datas válidas.'))); }
+              } catch (e) {
+                showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'Por favor, digite datas válidas.'));
+              }
             },
             child: const Text('Aplicar Filtro', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -302,10 +310,15 @@ class _FunnelListScreenState extends ConsumerState<FunnelListScreen> {
               try {
                 final start = DateFormat('dd/MM/yyyy').parseStrict(startCtrl.text);
                 final end = DateFormat('dd/MM/yyyy').parseStrict(endCtrl.text).add(const Duration(hours: 23, minutes: 59, seconds: 59));
-                if (start.isAfter(end)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data inicial maior que a final.'))); return; }
+                if (start.isAfter(end)) {
+                  showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'Data inicial maior que a final.'));
+                  return;
+                }
                 setState(() { _startDate = start; _endDate = end; _dateFilterIndex = 2; });
                 Navigator.pop(ctx);
-              } catch (e) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Datas inválidas.'))); }
+              } catch (e) {
+                showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'Datas inválidas.'));
+              }
             },
             child: const Text('Aplicar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -619,7 +632,9 @@ class _ExpandableClientCardState extends State<_ExpandableClientCard> {
 
   Future<void> _acceptSupervisorHelp() async {
     await Supabase.instance.client.from('clients').update({'phone_released': true}).eq('id', widget.client['id']);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contato liberado para a gestão.'), backgroundColor: Color(0xFF10B981)));
+    if (mounted) {
+      showTopSnackBar(Overlay.of(context), const CustomSnackBar.success(message: 'Contato liberado para a gestão.'));
+    }
   }
 
   // --- NOVA FUNÇÃO: DIÁLOGO DE EDIÇÃO DO CLIENTE ---
@@ -1017,7 +1032,7 @@ class _ExpandableClientCardState extends State<_ExpandableClientCard> {
                       // Injetar log da mudança de fase
                       await _logActivity('STAGE', 'Moveu o lead de "$currentStage" para "$s".');
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cliente movido para $s'), backgroundColor: const Color(0xFF10B981)));
+                        showTopSnackBar(Overlay.of(context), CustomSnackBar.success(message: 'Cliente movido para $s'));
                       }
                     }
                   },

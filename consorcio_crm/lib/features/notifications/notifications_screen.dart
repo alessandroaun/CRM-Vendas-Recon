@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:top_snackbar_flutter/top_snack_bar.dart';
+import 'package:top_snackbar_flutter/custom_snack_bar.dart';
+
 import '../auth/profile_provider.dart';
 import '../client_manage/funnel_screen.dart'; // Puxa o myClientsProvider
 
@@ -126,7 +129,12 @@ class _NoticeClientCardState extends State<_NoticeClientCard> {
     await Supabase.instance.client.from('clients').update({
       'phone_released': true,
     }).eq('id', widget.client['id']);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contato liberado para a gestão.'), backgroundColor: Color(0xFF10B981)));
+    if (mounted) {
+      showTopSnackBar(
+        Overlay.of(context),
+        const CustomSnackBar.success(message: 'Contato liberado para a gestão.'),
+      );
+    }
   }
 
   @override
