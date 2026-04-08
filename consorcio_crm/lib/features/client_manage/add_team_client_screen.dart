@@ -180,7 +180,7 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
                 FadeInUp(
                   duration: const Duration(milliseconds: 500),
                   child: _buildSectionCard(
-                    title: 'Qualificação',
+                    title: 'Interesse do Cliente',
                     icon: Icons.analytics_outlined,
                     children: [
                       // AQUI ATIVAMOS A MÁSCARA DE DINHEIRO
@@ -197,7 +197,7 @@ class _AddTeamClientScreenState extends ConsumerState<AddTeamClientScreen> {
                 FadeInUp(
                   duration: const Duration(milliseconds: 600),
                   child: _buildSectionCard(
-                    title: 'Estratégia e Funil',
+                    title: 'Prospecção e Anotações',
                     icon: Icons.flag_outlined,
                     children: [
                       _buildPremiumDropdown('Tipo de Captação', _selectedCapture, _captureTypes, (v) => setState(() => _selectedCapture = v!)),

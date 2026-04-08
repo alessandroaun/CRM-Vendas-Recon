@@ -55,7 +55,7 @@ class _SupervisorNavigationScreenState extends ConsumerState<SupervisorNavigatio
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 10, letterSpacing: -0.5),
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Equipe'),
-                BottomNavigationBarItem(icon: Icon(Icons.account_tree_rounded), label: 'Funil Geral'),
+                BottomNavigationBarItem(icon: Icon(Icons.account_tree_rounded), label: 'Carteira Geral'),
                 BottomNavigationBarItem(
                   icon: NotificationBadge(icon: Icons.support_agent_rounded), 
                   label: 'Demandas'

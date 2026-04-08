@@ -64,7 +64,7 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtre o funil:', style: TextStyle(color: Colors.black54, fontSize: 13)),
+            const Text('Filtre a Carteira:', style: TextStyle(color: Colors.black54, fontSize: 13)),
             const SizedBox(height: 20),
             TextField(controller: startCtrl, keyboardType: TextInputType.number, inputFormatters: [DateTextFormatter()], decoration: InputDecoration(labelText: 'Data Inicial', hintText: 'DD/MM/AAAA', filled: true, fillColor: const Color(0xFFF4F7FE), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF4F46E5)))),
             const SizedBox(height: 12),
@@ -132,7 +132,7 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
       backgroundColor: const Color(0xFFF4F7FE),
       appBar: AppBar(
         backgroundColor: Colors.transparent, elevation: 0, centerTitle: true,
-        title: const Text('Funil Geral', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        title: const Text('Carteira Geral', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
       ),
       floatingActionButton: profileAsync.whenData((p) {
         // Oculta o FAB se for Gerente/Diretor (que não têm equipe vinculada diretamente)
@@ -250,11 +250,11 @@ class _TeamFunnelScreenState extends ConsumerState<TeamFunnelScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          FadeInUp(delay: const Duration(milliseconds: 100), child: _buildHubCard(context, 'Produção de $currentMonthName', 'Prospecções do mês', totalProducao, countProducao, currencyFormatter, 'producao', const Color(0xFFF59E0B), Icons.calendar_month_rounded)),
+                          FadeInUp(delay: const Duration(milliseconds: 100), child: _buildHubCard(context, 'Prospeções de $currentMonthName', 'Prospecções do mês', totalProducao, countProducao, currencyFormatter, 'producao', const Color(0xFFF59E0B), Icons.calendar_month_rounded)),
                           const SizedBox(height: 16),
-                          FadeInUp(delay: const Duration(milliseconds: 200), child: _buildHubCard(context, 'Carteira de Negociação', 'Pendências de meses anteriores', totalCarteira, countCarteira, currencyFormatter, 'carteira', const Color(0xFF0EA5E9), Icons.hourglass_top_rounded)),
+                          FadeInUp(delay: const Duration(milliseconds: 200), child: _buildHubCard(context, 'Carteira dos Vendedores', 'Pendências de meses anteriores', totalCarteira, countCarteira, currencyFormatter, 'carteira', const Color(0xFF0EA5E9), Icons.hourglass_top_rounded)),
                           const SizedBox(height: 16),
-                          FadeInUp(delay: const Duration(milliseconds: 300), child: _buildHubCard(context, 'Contratos Fechados', 'Histórico de sucessos', totalFechados, countFechados, currencyFormatter, 'fechados', const Color(0xFF10B981), Icons.handshake_rounded)),
+                          FadeInUp(delay: const Duration(milliseconds: 300), child: _buildHubCard(context, 'Contratos já Fechados', 'Histórico de sucessos', totalFechados, countFechados, currencyFormatter, 'fechados', const Color(0xFF10B981), Icons.handshake_rounded)),
                           const SizedBox(height: 16),
                           FadeInUp(delay: const Duration(milliseconds: 400), child: _buildHubCard(context, 'Desistentes / Excluídos', 'Oportunidades perdidas', totalDesistentes, countDesistentes, currencyFormatter, 'desistentes', const Color(0xFFEF4444), Icons.delete_sweep_rounded)),
                         ],
@@ -759,6 +759,105 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
     try { await launchUrl(url, mode: LaunchMode.externalApplication); } catch (e) {}
   }
 
+  // --- NOVA FUNÇÃO: AGENDAR LEMBRETE PARA O GESTOR ---
+  Future<void> _showReminderDialog() async {
+    DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF8B5CF6))), child: child!),
+    );
+    if (selectedDate == null) return;
+
+    TimeOfDay? selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) => Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF8B5CF6))), child: child!),
+    );
+    if (selectedTime == null) return;
+
+    final DateTime reminderDateTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, selectedTime.hour, selectedTime.minute);
+    
+    if (reminderDateTime.isBefore(DateTime.now())) {
+      showTopSnackBar(Overlay.of(context), const CustomSnackBar.error(message: 'A data do lembrete deve ser no futuro.'));
+      return;
+    }
+
+    String selectedType = 'Retornar Ligação';
+    final types = ['Retornar Ligação', 'Promessa de Pagamento', 'Visita Agendada', 'Reunião', 'Outro'];
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Agendar Lembrete', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.alarm_rounded, color: Color(0xFF8B5CF6), size: 20),
+                    const SizedBox(width: 8),
+                    Text(DateFormat('dd/MM/yyyy HH:mm').format(reminderDateTime), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6), fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text('Motivo do Lembrete:', style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: selectedType,
+                  decoration: InputDecoration(filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                  items: types.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                  onChanged: (v) => setDialogState(() => selectedType = v!),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.black54))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                onPressed: () async {
+                  // 1. Adiciona o lembrete no histórico de conversas pra ficar visível na tela
+                  final List<dynamic> currentHistory = widget.client['chat_history'] != null ? List<dynamic>.from(widget.client['chat_history']) : [];
+                  currentHistory.add({
+                    'sender': 'sistema',
+                    'text': 'Lembrete (Gestão): $selectedType',
+                    'timestamp': DateTime.now().toIso8601String(),
+                    'reminder_date': reminderDateTime.toIso8601String(),
+                    'is_reminder': true,
+                  });
+
+                  // 2. Atualiza no Supabase
+                  await Supabase.instance.client.from('clients').update({
+                    'chat_history': currentHistory,
+                  }).eq('id', widget.client['id']);
+
+                  // 3. Registra no Log de Atividades
+                  await _logActivity('REMINDER', 'Agendou lembrete: $selectedType para ${DateFormat('dd/MM/yy HH:mm').format(reminderDateTime)}');
+
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    setState(() {}); // Atualiza a tela
+                    showTopSnackBar(Overlay.of(context), const CustomSnackBar.success(message: 'Lembrete salvo com sucesso!'));
+                  }
+                },
+                child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              )
+            ],
+          );
+        }
+      ),
+    );
+  }
+
   Future<void> _sendSupervisorMessage() async {
     if (_msgController.text.trim().isEmpty) return;
     final String text = _msgController.text.trim();
@@ -1039,7 +1138,7 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Histórico e Ações do Lead', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                const Text('Registros e Anotações', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                                 InkWell(
                                   onTap: _showEditDialog,
                                   borderRadius: BorderRadius.circular(8),
@@ -1077,7 +1176,15 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
                             if (!phoneReleased) ...[
                               const Center(child: Text('Aguardando o vendedor liberar o contato.', style: TextStyle(fontSize: 11, color: Colors.black38, fontStyle: FontStyle.italic))),
                             ] else ...[
-                              Row(children: [ Expanded(child: _buildActionButton(Icons.phone_rounded, 'Ligar', const Color(0xFF3B82F6), const Color(0xFFEFF6FF), () => _executeAction('ligacao', rawPhone))), const SizedBox(width: 12), Expanded(child: _buildActionButton(Icons.chat_rounded, 'WhatsApp', const Color(0xFF10B981), const Color(0xFFECFDF5), () => _executeAction('whatsapp', rawPhone))), ]),
+                              Row(
+                                children: [ 
+                                  Expanded(child: _buildActionButton(Icons.phone_rounded, 'Ligar', const Color(0xFF3B82F6), const Color(0xFFEFF6FF), () => _executeAction('ligacao', rawPhone))), 
+                                  const SizedBox(width: 8), 
+                                  Expanded(child: _buildActionButton(Icons.chat_rounded, 'WhatsApp', const Color(0xFF10B981), const Color(0xFFECFDF5), () => _executeAction('whatsapp', rawPhone))),
+                                  const SizedBox(width: 8), 
+                                  Expanded(child: _buildActionButton(Icons.notification_add_rounded, 'Lembrete', const Color(0xFF8B5CF6), const Color(0xFFF5F3FF), _showReminderDialog)),
+                                ]
+                              ),
                               if (isHelpMode) ...[
                                 const SizedBox(height: 12),
                                 InkWell(onTap: _toggleHelpOff, borderRadius: BorderRadius.circular(12), child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 10), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black12)), child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.check_circle_rounded, color: Colors.black54, size: 16), SizedBox(width: 6), Text('Encerrar Ajuda / Ocultar Contato', style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.bold))]))),
@@ -1099,14 +1206,36 @@ class _ExpandableTeamClientCardState extends State<_ExpandableTeamClientCard> {
     final date = DateTime.tryParse(msg['timestamp'] ?? '');
     final dateStr = date != null ? DateFormat('dd/MM HH:mm').format(date) : '';
     final bool isAlert = msg['is_alert'] == true;
+    final bool isReminder = msg['is_reminder'] == true; // NOVO: Verifica se é um lembrete
+
+    // Lógica de cores adaptada para a visão do gestor
+    Color bgColor = isReminder ? const Color(0xFFF5F3FF) : (isAlert ? const Color(0xFFFEF2F2) : (isMe ? const Color(0xFFFFFBEB) : const Color(0xFFEEF2FF)));
+    Color borderColor = isReminder ? const Color(0xFFDDD6FE) : (isAlert ? Colors.red.withOpacity(0.3) : (isMe ? const Color(0xFFFDE68A) : const Color(0xFFC7D2FE)));
+    Color iconColor = isReminder ? const Color(0xFF8B5CF6) : (isAlert ? Colors.redAccent : (isMe ? const Color(0xFFD97706) : const Color(0xFF4F46E5)));
+    IconData icon = isReminder ? Icons.alarm_rounded : (isMe ? Icons.admin_panel_settings_rounded : Icons.person_rounded);
+    String title = isReminder ? 'Lembrete Agendado' : (isAlert ? 'Pedido de Ajuda' : (isMe ? 'Eu (Gestão)' : 'Vendedor'));
+
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isReminder ? Alignment.center : (isMe ? Alignment.centerRight : Alignment.centerLeft),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), constraints: const BoxConstraints(maxWidth: 240),
-        decoration: BoxDecoration(color: isAlert ? const Color(0xFFFEF2F2) : (isMe ? const Color(0xFFFFFBEB) : const Color(0xFFEEF2FF)), borderRadius: BorderRadius.only(topLeft: const Radius.circular(12), topRight: const Radius.circular(12), bottomLeft: Radius.circular(isMe ? 12 : 2), bottomRight: Radius.circular(isMe ? 2 : 12)), border: Border.all(color: isAlert ? Colors.red.withOpacity(0.3) : (isMe ? const Color(0xFFFDE68A) : const Color(0xFFC7D2FE)))),
+        margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), constraints: const BoxConstraints(maxWidth: 260),
+        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisSize: MainAxisSize.min, children: [Icon(isMe ? Icons.admin_panel_settings_rounded : Icons.person_rounded, size: 10, color: isAlert ? Colors.redAccent : (isMe ? const Color(0xFFD97706) : const Color(0xFF4F46E5))), const SizedBox(width: 4), Text(isAlert ? 'Pedido de Ajuda' : (isMe ? 'Eu (Gestão)' : 'Vendedor'), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isAlert ? Colors.redAccent : (isMe ? const Color(0xFFD97706) : const Color(0xFF4F46E5))))]),
-          const SizedBox(height: 4), Text(msg['text'] ?? '', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))), const SizedBox(height: 4), Align(alignment: Alignment.bottomRight, child: Text(dateStr, style: const TextStyle(fontSize: 8, color: Colors.black38))),
+          Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 12, color: iconColor), const SizedBox(width: 4), Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: iconColor))]),
+          const SizedBox(height: 4),
+          Text(msg['text'] ?? '', style: const TextStyle(fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w500)),
+          
+          // Se for lembrete, mostra a data do alarme
+          if (isReminder && msg['reminder_date'] != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+              child: Text('⏰ Para: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(msg['reminder_date']))}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: iconColor)),
+            ),
+          ],
+          
+          const SizedBox(height: 4), Align(alignment: Alignment.bottomRight, child: Text(dateStr, style: const TextStyle(fontSize: 8, color: Colors.black38))),
         ]),
       ),
     );

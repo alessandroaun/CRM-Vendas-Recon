@@ -113,9 +113,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
               // A MÁGICA ACONTECE AQUI:
               items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Visão Geral'),
                 BottomNavigationBarItem(icon: Icon(Icons.person_add_rounded), label: 'Cadastrar'),
-                BottomNavigationBarItem(icon: Icon(Icons.view_kanban_rounded), label: 'Funil'),
+                BottomNavigationBarItem(icon: Icon(Icons.view_kanban_rounded), label: 'Carteira'),
                 BottomNavigationBarItem(
                   icon: NotificationBadge(icon: Icons.notifications_rounded), 
                   label: 'Avisos'

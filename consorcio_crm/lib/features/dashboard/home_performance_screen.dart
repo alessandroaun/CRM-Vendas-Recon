@@ -188,8 +188,54 @@ class _HomePerformanceScreenState extends State<HomePerformanceScreen> {
       backgroundColor: const Color(0xFFF4F7FE),
       appBar: AppBar(
         backgroundColor: Colors.transparent, elevation: 0, centerTitle: true,
-        title: const Text('Performance', style: TextStyle(color: Color(0xFF1E293B), fontSize: 16, fontWeight: FontWeight.bold)),
-        actions: [IconButton(icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF1E293B)), onPressed: () {})],
+        title: const Text('Visão Geral', style: TextStyle(color: Color(0xFF1E293B), fontSize: 16, fontWeight: FontWeight.bold)),
+        // --- REPLACEMENT ACTIONS BLOCK FOR VSCODE ---
+        actions: [
+          Consumer(
+            builder: (context, ref, child) {
+              final profileAsync = ref.watch(userProfileProvider);
+              return profileAsync.when(
+                loading: () => const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: Color(0xFF4F46E5), strokeWidth: 2)),
+                error: (err, stack) => const Icon(Icons.error_outline, color: Color(0xFFEF4444)),
+                data: (profile) {
+                  final avatarUrl = profile?.avatarUrl;
+                  return Padding(
+                    // 1. Position: Abaixe mais. Changed from symmetric to specific top padding
+                    // Isso empurra a foto para baixo dentro do espaço padrão da AppBar.
+                    padding: const EdgeInsets.only(right: 16.0, top: 12.0),
+                    child: Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0), // Cor de fundo fallback
+                        shape: BoxShape.circle,
+                        // 2. Remove shadow: boxShadow removed
+                        
+                        // 3. Remove blue line: border removed
+
+                        image: (avatarUrl != null && avatarUrl.isNotEmpty)
+                            ? DecorationImage(
+                                image: NetworkImage(avatarUrl),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: (avatarUrl == null || avatarUrl.isEmpty)
+                          ? Center(
+                              child: Text(
+                                profile?.fullName.isNotEmpty == true ? profile!.fullName[0].toUpperCase() : 'U',
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                              ),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+        // -------------------------------------------
       ),
       body: Consumer(
         builder: (context, ref, child) {
@@ -245,7 +291,7 @@ class _HomePerformanceScreenState extends State<HomePerformanceScreen> {
                         children: [
                           Text('Olá $firstName,', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.5)),
                           const SizedBox(height: 4),
-                          const Text('Suas estatísticas são essas...', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Color(0xFF64748B))),
+                          const Text('Essa é a visão geral da sua carteira', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Color(0xFF64748B))),
                         ],
                       ),
                     ),

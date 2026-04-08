@@ -136,7 +136,49 @@ class _TeamOverviewScreenState extends ConsumerState<TeamOverviewScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FE),
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, centerTitle: true, title: const Text('Gestão de Equipe', style: TextStyle(color: Color(0xFF1E293B), fontSize: 16, fontWeight: FontWeight.bold))),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, elevation: 0, centerTitle: true, 
+        title: const Text('Gestão de Equipe', style: TextStyle(color: Color(0xFF1E293B), fontSize: 16, fontWeight: FontWeight.bold)),
+        actions: [
+          Consumer(
+            builder: (context, ref, child) {
+              final profileAsync = ref.watch(userProfileProvider);
+              return profileAsync.when(
+                loading: () => const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: Color(0xFF4F46E5), strokeWidth: 2)),
+                error: (err, stack) => const Icon(Icons.error_outline, color: Color(0xFFEF4444)),
+                data: (profile) {
+                  final avatarUrl = profile?.avatarUrl;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16.0, top: 12.0),
+                    child: Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                        image: (avatarUrl != null && avatarUrl.isNotEmpty)
+                            ? DecorationImage(
+                                image: NetworkImage(avatarUrl),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: (avatarUrl == null || avatarUrl.isEmpty)
+                          ? Center(
+                              child: Text(
+                                profile?.fullName.isNotEmpty == true ? profile!.fullName[0].toUpperCase() : 'U',
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                              ),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),
         error: (err, stack) => Center(child: Text('Erro: $err')),
@@ -375,6 +417,7 @@ class _TeamOverviewScreenState extends ConsumerState<TeamOverviewScreen> {
                                       child: _ExpandableEntityCard(
                                         id: s['id'], isTeam: false,
                                         title: _formatName(s['full_name'] ?? ''), subtitle: 'Equipe: ${sTeam['name']}',
+                                        avatarUrl: s['avatar_url'], // <-- ENVIANDO A FOTO PRO CARD
                                         totalClients: stats['total_clients'], closedCount: stats['closed_count'], salesVal: stats['sales_val'], negCount: stats['negotiation_count'], negVal: stats['negotiation_val'], topSegment: sTopSeg, conversion: sConv, formatter: currencyFormatter,
                                       ),
                                     );
@@ -449,6 +492,7 @@ class _ExpandableEntityCard extends StatefulWidget {
   final bool isTeam;
   final String title;
   final String subtitle;
+  final String? avatarUrl; // <-- ADICIONADO
   final int totalClients;
   final int closedCount;
   final double salesVal;
@@ -458,7 +502,7 @@ class _ExpandableEntityCard extends StatefulWidget {
   final double conversion;
   final NumberFormat formatter;
 
-  const _ExpandableEntityCard({required this.id, required this.isTeam, required this.title, required this.subtitle, required this.totalClients, required this.closedCount, required this.salesVal, required this.negCount, required this.negVal, required this.topSegment, required this.conversion, required this.formatter});
+  const _ExpandableEntityCard({required this.id, required this.isTeam, required this.title, required this.subtitle, this.avatarUrl, required this.totalClients, required this.closedCount, required this.salesVal, required this.negCount, required this.negVal, required this.topSegment, required this.conversion, required this.formatter});
 
   @override
   State<_ExpandableEntityCard> createState() => _ExpandableEntityCardState();
@@ -485,7 +529,23 @@ class _ExpandableEntityCardState extends State<_ExpandableEntityCard> {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Container(height: 48, width: 48, decoration: BoxDecoration(color: cardColor.withOpacity(0.1), shape: BoxShape.circle), child: Center(child: widget.isTeam ? Icon(Icons.groups_rounded, color: cardColor) : Text(initial, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: cardColor)))),
+                    Container(
+                      height: 48, width: 48, 
+                      decoration: BoxDecoration(
+                        color: cardColor.withOpacity(0.1), 
+                        shape: BoxShape.circle,
+                        image: (!widget.isTeam && widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty)
+                            ? DecorationImage(image: NetworkImage(widget.avatarUrl!), fit: BoxFit.cover)
+                            : null,
+                      ), 
+                      child: Center(
+                        child: widget.isTeam 
+                          ? Icon(Icons.groups_rounded, color: cardColor) 
+                          : ((widget.avatarUrl == null || widget.avatarUrl!.isEmpty)
+                              ? Text(initial, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: cardColor))
+                              : null),
+                      )
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -551,7 +611,7 @@ class _ExpandableEntityCardState extends State<_ExpandableEntityCard> {
                               },
                               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF8FAFC), foregroundColor: cardColor, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE2E8F0)))),
                               icon: const Icon(Icons.folder_shared_rounded, size: 18),
-                              label: const Text('Ver Produção do Mês Atual', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              label: const Text('Ver prospecções do Mês Atual', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           )
                         ],

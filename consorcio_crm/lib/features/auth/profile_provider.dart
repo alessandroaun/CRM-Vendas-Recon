@@ -7,6 +7,7 @@ class UserProfile {
   final String role;
   final String? teamId;
   final String? regiao; // <-- ADICIONAMOS A REGIÃO AQUI!
+  final String? avatarUrl;
 
   UserProfile({
     required this.id,
@@ -14,6 +15,7 @@ class UserProfile {
     required this.role,
     this.teamId,
     this.regiao, // <-- ADICIONAMOS A REGIÃO AQUI!
+    this.avatarUrl,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
@@ -23,6 +25,7 @@ class UserProfile {
       role: map['role'] ?? 'vendedor',
       teamId: map['team_id']?.toString(),
       regiao: map['regiao']?.toString(), // <-- ADICIONAMOS A LIDA DO BANCO DE DADOS AQUI!
+      avatarUrl: map['avatar_url'],
     );
   }
 }

@@ -117,7 +117,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FE),
       appBar: AppBar(
-        title: const Text('Cadastrar Novo', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        title: const Text('Cadastrar Novo Cliente', style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         backgroundColor: Colors.transparent, elevation: 0, centerTitle: true,
       ),
       body: SafeArea(
@@ -145,7 +145,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                 FadeInUp(
                   duration: const Duration(milliseconds: 500),
                   child: _buildSectionCard(
-                    title: 'Qualificação da Cota',
+                    title: 'Interesse do Cliente',
                     icon: Icons.analytics_outlined,
                     children: [
                       // AQUI ATIVAMOS A MÁSCARA DE DINHEIRO
@@ -161,7 +161,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                 FadeInUp(
                   duration: const Duration(milliseconds: 600),
                   child: _buildSectionCard(
-                    title: 'Estratégia e Funil',
+                    title: 'Prospecção e Anotações',
                     icon: Icons.flag_outlined,
                     children: [
                       _buildPremiumDropdown('Tipo de Captação', _selectedCapture, _captureTypes, (v) => setState(() => _selectedCapture = v!)),
@@ -186,7 +186,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                     ),
                     child: _isLoading
                         ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                        : const Text('Salvar no Funil', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        : const Text('Salvar na Carteira', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 ),
                 const SizedBox(height: 40),
